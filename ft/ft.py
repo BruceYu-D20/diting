@@ -1,9 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import os
 import time
-from common import *
 from datasets import load_from_disk, DatasetDict,concatenate_datasets
 from datasets import Audio
 import evaluate
@@ -12,9 +10,14 @@ from peft import prepare_model_for_kbit_training
 from peft import LoraConfig, get_peft_model
 from features import *
 from torch.utils.tensorboard import SummaryWriter
+from utils import path_with_datesuffix
+
+# 获取所有的数据读写路径
+paths = path_with_datesuffix()
+print(f'ft.py: \n {paths}')
 
 # 创建模型+peft lora
-model = WhisperForConditionalGeneration.from_pretrained(MODEL_PATH, quantization_config=BitsAndBytesConfig(load_in_8bit=True))
+model = WhisperForConditionalGeneration.from_pretrained(paths['MODEL_PATH'], quantization_config=BitsAndBytesConfig(load_in_8bit=True))
 model.config.forced_decoder_ids = None
 model.config.suppress_tokens = []
 model = prepare_model_for_kbit_training(model)
@@ -24,15 +27,11 @@ model = get_peft_model(model, config)
 model.print_trainable_parameters()
 
 # 分词器等
-# feature_extractor = WhisperFeatureExtractor.from_pretrained(MODEL_PATH, language='ar', task="transcribe")
-# tokenizer = WhisperTokenizer.from_pretrained(MODEL_PATH, language="ar", task="transcribe")
-processor = WhisperProcessor.from_pretrained(MODEL_PATH, language="ar", task="transcribe")
+processor = WhisperProcessor.from_pretrained(paths['MODEL_PATH'], language="ar", task="transcribe")
 feature_extractor = processor.feature_extractor
 tokenizer = processor.tokenizer
 
 def _prepare_dataset(batch):
-    # trainer.state.global_step
-    # load and resample audio data from 48 to 16kHz
     audio = batch["audio"]
     # compute log-Mel input features from input audio array
     batch["input_features"] = feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
@@ -41,7 +40,7 @@ def _prepare_dataset(batch):
     return batch
 
 # 数据集
-ds = load_from_disk(DATASET_PATH)
+ds = load_from_disk(paths['DATASET_PATH'])
 common_voice = DatasetDict()
 common_voice['train'] = concatenate_datasets([ds['train'], ds['validation']])
 common_voice['test'] = ds['test']
@@ -50,32 +49,38 @@ common_voice = common_voice.map(_prepare_dataset, remove_columns=common_voice.co
 
 data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
-# metrics 函数
-metric = evaluate.load(WER_PATH)
+# 加载wer metrics
+metric_wer = evaluate.load(os.path.join(paths['METRICS_PATH'], "wer"))
+# 加载cer metrics
+metric_cer = evaluate.load(os.path.join(paths['METRICS_PATH'], "cer"))
 
 def _compute_metrics(pred):
+    # 预测值和真实值
     pred_ids = pred.predictions
     label_ids = pred.label_ids
     # replace -100 with the pad_token_id
     label_ids[label_ids == -100] = tokenizer.pad_token_id
-    # we do not want to group tokens when computing the metrics
+    # 解码预测值和真实值
     pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
     label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
-    wer = 100 * metric.compute(predictions=pred_str, references=label_str)
-    return {"wer": wer}
+    # wer
+    wer = 100 * metric_wer.compute(predictions=pred_str, references=label_str)
+    # cer
+    cer = 100 * metric_cer.compute(predictions=pred_str, references=label_str)
+    return {"wer": wer, "cer": cer}
 
 from transformers import Seq2SeqTrainingArguments
 
 # log日志文件夹按时间存
 sd = str(int(time.time()))
 training_args = Seq2SeqTrainingArguments(
-    output_dir=MODEL_OUT_DIR, # change to a repo name of your choice
-    logging_dir=LOGGING_DIR,
+    output_dir=paths['MODEL_OUT_DIR'], # change to a repo name of your choice
+    logging_dir=paths['LOGGING_DIR'],
     logging_steps=1,
     num_train_epochs=10, # ecpoch 10 batch_size=128 情况下总step 1930
-    per_device_train_batch_size=128,
-    gradient_accumulation_steps=1, # increase by 2x for every 2x decrease in batch size
-    per_device_eval_batch_size=128,
+    per_device_train_batch_size=256,
+    gradient_accumulation_steps=2, # increase by 2x for every 2x decrease in batch size
+    per_device_eval_batch_size=150, # 128
     learning_rate=3e-4, # 经过几次训练发现设置5e-4，loss会趋于收敛，lr会减小到3e-4左右
     warmup_ratio=0.05, # warm up占总step的比例
     # warmup_steps=300,
@@ -84,8 +89,8 @@ training_args = Seq2SeqTrainingArguments(
     fp16=True,
     eval_strategy="steps",
     save_strategy="steps",
-    save_steps=100, # 因为设置了load_best_model_at_end，所以要根据总step来调整，或save_steps=eval_steps=小数。基本设置到1个epoch一次eval
-    eval_steps=1,
+    save_steps=60, # 因为设置了load_best_model_at_end，所以要根据总step来调整，或save_steps=eval_steps=小数。基本设置到1个epoch一次eval
+    eval_steps=2,
     predict_with_generate=True,
     generation_max_length=512,
     report_to=["tensorboard"],
@@ -97,8 +102,8 @@ training_args = Seq2SeqTrainingArguments(
     #      我希望在loss收敛后可以手动停止训练，所以必须要把save_strategy设置为steps
     #      但eval耗时，如何平衡eval和save mode的平衡？
     load_best_model_at_end=True,
-    metric_for_best_model="wer", # metric_for_best_model默认会认为metrics越大越好，wer是越小越好，所以wer要把greater_is_better设置为false
-    greater_is_better=False,
+    metric_for_best_model="wer", # metrics结束之后，会返回一个dict，里面会有eval_wer eval_cer等用于测评的方法，这里要写不带wer_前缀的名字。比如wer_cer就写cer
+    greater_is_better=False,  # metric_for_best_model默认会认为metrics越大越好，wer是越小越好，所以wer要把greater_is_better设置为false
     save_total_limit=3,
     label_names=['labels'],
     weight_decay=0.01,
@@ -117,7 +122,8 @@ trainer = Seq2SeqTrainer(
     data_collator=data_collator,
     compute_metrics=_compute_metrics,
     tokenizer=processor.feature_extractor,
-    callbacks=[SavePeftModelCallback, TensorBoardWerCallback(tb_writer)] # callbacks函数允许在一定阶段被回调
+    callbacks=[SavePeftModelCallback, TensorBoardWerCallback(tb_writer)], # callbacks函数允许在一定阶段被回调
+    # callbacks=[SavePeftModelCallback], # callbacks函数允许在一定阶段被回调
 )
 
 trainer.train()

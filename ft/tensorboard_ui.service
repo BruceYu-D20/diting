@@ -1,0 +1,12 @@
+[Unit]
+# 装在物理机，放在/etc/systemd/system/
+Description=tensorboard监控文件夹
+After=network.target
+
+[Service]
+ExecStart=/data/whisper_ft/start_tensorboard.sh
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target

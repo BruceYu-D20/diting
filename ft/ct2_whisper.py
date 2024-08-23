@@ -1,6 +1,11 @@
 import os
-from common import *
-from ctranslate2.converters.transformers import main
+from utils import path_with_datesuffix
+
+# 获取所有的数据读写路径
+paths = path_with_datesuffix()
+print(f'ct2.py: \n {paths}')
+MERGE_MODEL_SAVEPATH = paths['MERGE_MODEL_SAVEPATH']
+CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
 
 #--low_cpu_mem_usage   Enable the flag low_cpu_mem_usage when loading the model with from_pretrained. (default: False)
 # cover的时候指定--quantization float16 , peft加载的时候也要torch.floatx格式

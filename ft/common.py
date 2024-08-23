@@ -13,9 +13,6 @@ CT2_MERGE_MODEL_SAVEPATH：ct2转化后模型的存储地址
 '''
 DATASET_PATH = "E:/huggingface/datasets/common_voice_datasets/common-17_arsub"
 MODEL_PATH = "E:/huggingface/models/whisper-tiny"
-WER_PATH = "E:/huggingface/metrics/wer"
-LOGGING_DIR = "E:/code/whisper_ft/logdir/"
-MODEL_OUT_DIR = "E:/code/whisper_ft/modelout/"
+METRICS_PATH = "E:/huggingface/metrics"
+PROJECT_PATH = "E:/code/whisper_ft"
 PEFT_MODEL_ID = "checkpoint-39"
-MERGE_MODEL_SAVEPATH = "E:/code/whisper_ft/mergedmodel/"
-CT2_MERGE_MODEL_SAVEPATH = "E:/code/whisper_ft/mergedmodel_ct2/"

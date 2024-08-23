@@ -73,6 +73,7 @@ class TensorBoardWerCallback(TrainerCallback):
         metrics = kwargs['metrics']
         print(metrics)
         eval_wer = metrics['eval_wer']
-        print(eval_wer)
+        eval_cer = metrics['eval_cer']
         # 写道tensorboard上
         self.tb_writer.add_scalar('train/wer', eval_wer, state.global_step)
+        self.tb_writer.add_scalar('train/cer', eval_cer, state.global_step)
