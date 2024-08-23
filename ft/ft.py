@@ -10,7 +10,8 @@ import evaluate
 from transformers import BitsAndBytesConfig, WhisperProcessor, WhisperForConditionalGeneration, Seq2SeqTrainer
 from peft import prepare_model_for_kbit_training
 from peft import LoraConfig, get_peft_model
-from features import DataCollatorSpeechSeq2SeqWithPadding, SavePeftModelCallback
+from features import *
+from torch.utils.tensorboard import SummaryWriter
 
 # 创建模型+peft lora
 model = WhisperForConditionalGeneration.from_pretrained(MODEL_PATH, quantization_config=BitsAndBytesConfig(load_in_8bit=True))
@@ -30,6 +31,7 @@ feature_extractor = processor.feature_extractor
 tokenizer = processor.tokenizer
 
 def _prepare_dataset(batch):
+    # trainer.state.global_step
     # load and resample audio data from 48 to 16kHz
     audio = batch["audio"]
     # compute log-Mel input features from input audio array
@@ -73,17 +75,17 @@ training_args = Seq2SeqTrainingArguments(
     num_train_epochs=10, # ecpoch 10 batch_size=128 情况下总step 1930
     per_device_train_batch_size=128,
     gradient_accumulation_steps=1, # increase by 2x for every 2x decrease in batch size
-    per_device_eval_batch_size=256,
-    learning_rate=5e-4,
-    warmup_ratio=0.05,
+    per_device_eval_batch_size=128,
+    learning_rate=3e-4, # 经过几次训练发现设置5e-4，loss会趋于收敛，lr会减小到3e-4左右
+    warmup_ratio=0.05, # warm up占总step的比例
     # warmup_steps=300,
     # max_steps=1000,
     gradient_checkpointing=True,
     fp16=True,
     eval_strategy="steps",
     save_strategy="steps",
-    save_steps=200, # 因为设置了load_best_model_at_end，所以要根据总step来调整，或save_steps=eval_steps=小数。基本设置到1个epoch一次eval
-    eval_steps=200,
+    save_steps=100, # 因为设置了load_best_model_at_end，所以要根据总step来调整，或save_steps=eval_steps=小数。基本设置到1个epoch一次eval
+    eval_steps=1,
     predict_with_generate=True,
     generation_max_length=512,
     report_to=["tensorboard"],
@@ -100,8 +102,12 @@ training_args = Seq2SeqTrainingArguments(
     save_total_limit=3,
     label_names=['labels'],
     weight_decay=0.01,
+    max_grad_norm=1, # 限制grad_norm的最大值
     remove_unused_columns=False,  # required as the PeftModel forward doesn't have the signature of the wrapped model's forward
 )
+
+# 将wer值写入tensorboard，创建writer
+tb_writer = SummaryWriter(training_args.logging_dir)
 
 trainer = Seq2SeqTrainer(
     args=training_args,
@@ -111,7 +117,7 @@ trainer = Seq2SeqTrainer(
     data_collator=data_collator,
     compute_metrics=_compute_metrics,
     tokenizer=processor.feature_extractor,
-    callbacks=[SavePeftModelCallback]
+    callbacks=[SavePeftModelCallback, TensorBoardWerCallback(tb_writer)] # callbacks函数允许在一定阶段被回调
 )
 
 trainer.train()

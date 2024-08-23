@@ -7,6 +7,8 @@ import torch
 import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
+
+from torch.utils.tensorboard import SummaryWriter
 from transformers import TrainingArguments, TrainerState, TrainerControl, TrainerCallback
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 
@@ -37,6 +39,9 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
         return batch
 
+'''
+callback有多种状态，在不同的时间调用。查看callback代码
+'''
 class SavePeftModelCallback(TrainerCallback):
     def on_save(
         self,
@@ -54,3 +59,20 @@ class SavePeftModelCallback(TrainerCallback):
         if os.path.exists(pytorch_model_path):
             os.remove(pytorch_model_path)
         return control
+
+'''
+在每次eval后，输出wer到tensorboard
+用于观察loss和wer的关系
+'''
+class TensorBoardWerCallback(TrainerCallback):
+    def __init__(self, tb_writer: SummaryWriter):
+        self.tb_writer = tb_writer
+
+    def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        # 获取wer值
+        metrics = kwargs['metrics']
+        print(metrics)
+        eval_wer = metrics['eval_wer']
+        print(eval_wer)
+        # 写道tensorboard上
+        self.tb_writer.add_scalar('train/wer', eval_wer, state.global_step)

@@ -47,7 +47,7 @@ def _merge_model():
         torch_dtype=torch.float32, # 在ct2转换时，如果指定的--quantization float16，这里必须时float16
         device_map="auto"
     )
-    peft_model = PeftModel.from_pretrained(base_model, os.path.join(MODEL_OUT_DIR, PEFT_MODEL_ID))
+    peft_model = PeftModel.from_pretrained(base_model, os.path.join(MODEL_OUT_DIR, os.path.join(MODEL_OUT_DIR, PEFT_MODEL_ID)))
     model = peft_model.merge_and_unload()
 
     tokenizer = WhisperTokenizer.from_pretrained(MODEL_PATH)
