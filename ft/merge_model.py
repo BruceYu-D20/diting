@@ -4,16 +4,15 @@
 # 代码功能：
 # 合并peft checkpoint和基座模型的权重
 
-from peft import PeftModel, PeftConfig
-from transformers import WhisperForConditionalGeneration, Seq2SeqTrainer, BitsAndBytesConfig, WhisperTokenizer
+from peft import PeftModel
+from transformers import WhisperForConditionalGeneration, WhisperTokenizer
 import os
 import shutil
 import torch
-from utils import path_with_datesuffix
+from tools.utils import path_with_datesuffix
 
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()
-print(f'merge_model.py: \n {paths}')
 
 '''
 拷贝['tokenizer.json', "preprocessor_config.json"]到merge目录下
@@ -62,4 +61,7 @@ def _merge_model():
 def merge_peft_model():
     _merge_model()
     _files_base_to_merge()
+
+# 二分法查找
+
 

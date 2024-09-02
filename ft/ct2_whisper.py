@@ -1,9 +1,8 @@
 import os
-from utils import path_with_datesuffix
+from tools.utils import path_with_datesuffix
 
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()
-print(f'ct2.py: \n {paths}')
 MERGE_MODEL_SAVEPATH = paths['MERGE_MODEL_SAVEPATH']
 CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
 

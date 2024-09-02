@@ -51,6 +51,7 @@ class SavePeftModelCallback(TrainerCallback):
         **kwargs,
     ):
         checkpoint_folder = os.path.join(args.output_dir, f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}")
+        print(checkpoint_folder)
 
         peft_model_path = os.path.join(checkpoint_folder, "adapter_model")
         kwargs["model"].save_pretrained(peft_model_path)

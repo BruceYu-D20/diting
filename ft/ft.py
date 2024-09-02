@@ -1,20 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import time
 from datasets import load_from_disk, DatasetDict,concatenate_datasets
 from datasets import Audio
 import evaluate
 from transformers import BitsAndBytesConfig, WhisperProcessor, WhisperForConditionalGeneration, Seq2SeqTrainer
 from peft import prepare_model_for_kbit_training
 from peft import LoraConfig, get_peft_model
-from features import *
+from tools.features import *
 from torch.utils.tensorboard import SummaryWriter
-from utils import path_with_datesuffix
+from tools.utils import path_with_datesuffix
 
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()
-print(f'ft.py: \n {paths}')
 
 # 创建模型+peft lora
 model = WhisperForConditionalGeneration.from_pretrained(paths['MODEL_PATH'], quantization_config=BitsAndBytesConfig(load_in_8bit=True))
@@ -72,42 +70,46 @@ def _compute_metrics(pred):
 from transformers import Seq2SeqTrainingArguments
 
 # log日志文件夹按时间存
-sd = str(int(time.time()))
+# 定义Seq2Seq训练参数
 training_args = Seq2SeqTrainingArguments(
-    output_dir=paths['MODEL_OUT_DIR'], # change to a repo name of your choice
-    logging_dir=paths['LOGGING_DIR'],
-    logging_steps=1,
-    num_train_epochs=10, # ecpoch 10 batch_size=128 情况下总step 1930
-    per_device_train_batch_size=256,
-    gradient_accumulation_steps=2, # increase by 2x for every 2x decrease in batch size
-    per_device_eval_batch_size=150, # 128
-    learning_rate=3e-4, # 经过几次训练发现设置5e-4，loss会趋于收敛，lr会减小到3e-4左右
+    output_dir=paths['MODEL_OUT_DIR'], # 设置模型输出目录，可以根据需要更改
+    logging_dir=paths['LOGGING_DIR'], # 设置日志目录
+    logging_steps=1, # 每一步记录一次日志
+    num_train_epochs=5, # 训练10个epoch
+    per_device_train_batch_size=128, # 每个设备的训练批次大小为128
+    gradient_accumulation_steps=1, # 每次减少2倍的batch size，增加2倍
+    per_device_eval_batch_size=64, # 每个设备的评估批次大小为64
+    eval_accumulation_steps=2, # 每两个step评估一次
+    learning_rate=3e-4, # 学习率为3e-4
     warmup_ratio=0.05, # warm up占总step的比例
-    # warmup_steps=300,
-    # max_steps=1000,
-    gradient_checkpointing=True,
-    fp16=True,
-    eval_strategy="steps",
-    save_strategy="steps",
-    save_steps=60, # 因为设置了load_best_model_at_end，所以要根据总step来调整，或save_steps=eval_steps=小数。基本设置到1个epoch一次eval
-    eval_steps=2,
-    predict_with_generate=True,
-    generation_max_length=512,
-    report_to=["tensorboard"],
+    eval_delay=1, # 第一轮有warn up，不eval
+    # warmup_steps=300, # warm up的step数为300
+    # max_steps=1000, # 最大step数为1000
+    gradient_checkpointing=True, # 开启梯度检查点
+    fp16=True, # 开启半精度训练
+    eval_strategy="epoch", # 每个epoch评估一次
+    save_strategy="epoch", # 每个epoch保存一次
+    # save_steps=200, # 每个step保存一次
+    # eval_steps=1, # 每个step评估一次
+    # batch_eval_metrics=,
+    predict_with_generate=True, # 使用生成进行预测
+    generation_max_length=512, # 生成最大长度为512
+    report_to=["tensorboard"], # 使用tensorboard进行报告
     # 下面四个参数配合使用
     # 逻辑：当load_best_model_at_end=True，save_total_limit会存储最优的3个checkpoint，评价标准是metric_for_best_model="wer"，且
     # 根据greater_is_better=False，wer的值越小越好
     # 注意：load_best_model_at_end=True时，eval_strategy和save_strategy必须同时是epoch或steps。且save_strategy必须是eval_strategy的倍数
-    #      但我并不希望每个epoch才存一次模型的checkpoint，所以设置为steps。
+    #      但我并不希望每个epoch才存一次模型的checkpoint，所以设置为steps。此时启用max_steps？
     #      我希望在loss收敛后可以手动停止训练，所以必须要把save_strategy设置为steps
     #      但eval耗时，如何平衡eval和save mode的平衡？
-    load_best_model_at_end=True,
-    metric_for_best_model="wer", # metrics结束之后，会返回一个dict，里面会有eval_wer eval_cer等用于测评的方法，这里要写不带wer_前缀的名字。比如wer_cer就写cer
-    greater_is_better=False,  # metric_for_best_model默认会认为metrics越大越好，wer是越小越好，所以wer要把greater_is_better设置为false
-    save_total_limit=3,
-    label_names=['labels'],
-    weight_decay=0.01,
-    max_grad_norm=1, # 限制grad_norm的最大值
+    load_best_model_at_end=True, # 加载最优模型
+    # metric_for_best_model="wer", # 评价最优模型的指标为wer
+    # greater_is_better=False,  # metric_for_best_model默认会认为metrics越大越好，wer是越小越好，所以wer要把greater_is_better设置为false
+    # 下面两个参数不开是因为：认为loss最小，eval结果最优
+    save_total_limit=3, # 保存最优的3个checkpoint
+    label_names=['labels'], # 标签名称
+    weight_decay=0.01, # 权重衰减为0.01
+    max_grad_norm=1, # 限制grad_norm的最大值为1
     remove_unused_columns=False,  # required as the PeftModel forward doesn't have the signature of the wrapped model's forward
 )
 
@@ -123,7 +125,6 @@ trainer = Seq2SeqTrainer(
     compute_metrics=_compute_metrics,
     tokenizer=processor.feature_extractor,
     callbacks=[SavePeftModelCallback, TensorBoardWerCallback(tb_writer)], # callbacks函数允许在一定阶段被回调
-    # callbacks=[SavePeftModelCallback], # callbacks函数允许在一定阶段被回调
 )
 
 trainer.train()

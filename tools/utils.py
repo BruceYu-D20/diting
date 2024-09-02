@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 import time
-import common
+from tools import common
 import functools
 
 '''
@@ -20,7 +20,7 @@ def path_with_datesuffix():
     modleout_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "model_out"), time_suffix)
     mergemodel_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "merged_model"), time_suffix)
     ct2_mergemodel_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "ct2_model"), time_suffix)
-    path_dict = {"DATASET_PATH": common.DATASET_PATH, "MODEL_PATH": common.MODEL_PATH,"METRICS_PATH": common.METRICS_PATH,
+    path_dict = {"DATASET_PATH": common.DATASET_PATH, "MODEL_PATH": common.MODEL_PATH, "METRICS_PATH": common.METRICS_PATH,
                  "LOGGING_DIR": logdir_suffix,"MODEL_OUT_DIR": modleout_suffix, "PEFT_MODEL_ID": common.PEFT_MODEL_ID,
                  "MERGE_MODEL_SAVEPATH": mergemodel_suffix, "CT2_MERGE_MODEL_SAVEPATH": ct2_mergemodel_suffix}
     print(path_dict)
