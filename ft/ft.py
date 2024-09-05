@@ -59,8 +59,8 @@ def _compute_metrics(pred):
     # replace -100 with the pad_token_id
     label_ids[label_ids == -100] = tokenizer.pad_token_id
     # 解码预测值和真实值
-    pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-    label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+    pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True, normalize=True)
+    label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True, normalize=True)
     # wer
     wer = 100 * metric_wer.compute(predictions=pred_str, references=label_str)
     # cer
@@ -75,19 +75,19 @@ training_args = Seq2SeqTrainingArguments(
     output_dir=paths['MODEL_OUT_DIR'], # 设置模型输出目录，可以根据需要更改
     logging_dir=paths['LOGGING_DIR'], # 设置日志目录
     logging_steps=1, # 每一步记录一次日志
-    num_train_epochs=5, # 训练10个epoch
-    per_device_train_batch_size=128, # 每个设备的训练批次大小为128
+    num_train_epochs=3, # 训练10个epoch
+    per_device_train_batch_size=20, # 每个设备的训练批次大小为128
     gradient_accumulation_steps=1, # 每次减少2倍的batch size，增加2倍
-    per_device_eval_batch_size=64, # 每个设备的评估批次大小为64
-    eval_accumulation_steps=2, # 每两个step评估一次
+    # per_device_eval_batch_size=64, # 每个设备的评估批次大小为64
+    # eval_accumulation_steps=2, # 每两个step评估一次
     learning_rate=3e-4, # 学习率为3e-4
     warmup_ratio=0.05, # warm up占总step的比例
-    eval_delay=1, # 第一轮有warn up，不eval
+    # eval_delay=1, # 第一轮有warn up，不eval
     # warmup_steps=300, # warm up的step数为300
     # max_steps=1000, # 最大step数为1000
     gradient_checkpointing=True, # 开启梯度检查点
     fp16=True, # 开启半精度训练
-    eval_strategy="epoch", # 每个epoch评估一次
+    eval_strategy="no", # 每个epoch评估一次
     save_strategy="epoch", # 每个epoch保存一次
     # save_steps=200, # 每个step保存一次
     # eval_steps=1, # 每个step评估一次
@@ -102,11 +102,11 @@ training_args = Seq2SeqTrainingArguments(
     #      但我并不希望每个epoch才存一次模型的checkpoint，所以设置为steps。此时启用max_steps？
     #      我希望在loss收敛后可以手动停止训练，所以必须要把save_strategy设置为steps
     #      但eval耗时，如何平衡eval和save mode的平衡？
-    load_best_model_at_end=True, # 加载最优模型
+    # load_best_model_at_end=True, # 加载最优模型
     # metric_for_best_model="wer", # 评价最优模型的指标为wer
     # greater_is_better=False,  # metric_for_best_model默认会认为metrics越大越好，wer是越小越好，所以wer要把greater_is_better设置为false
     # 下面两个参数不开是因为：认为loss最小，eval结果最优
-    save_total_limit=3, # 保存最优的3个checkpoint
+    # save_total_limit=3, # 保存最优的3个checkpoint
     label_names=['labels'], # 标签名称
     weight_decay=0.01, # 权重衰减为0.01
     max_grad_norm=1, # 限制grad_norm的最大值为1
@@ -120,9 +120,9 @@ trainer = Seq2SeqTrainer(
     args=training_args,
     model=model,
     train_dataset=common_voice["train"],
-    eval_dataset=common_voice["test"],
+    # eval_dataset=common_voice["test"],
     data_collator=data_collator,
-    compute_metrics=_compute_metrics,
+    # compute_metrics=_compute_metrics,
     tokenizer=processor.feature_extractor,
     callbacks=[SavePeftModelCallback, TensorBoardWerCallback(tb_writer)], # callbacks函数允许在一定阶段被回调
 )

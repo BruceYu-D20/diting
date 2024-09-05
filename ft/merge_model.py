@@ -17,21 +17,20 @@ paths = path_with_datesuffix()
 '''
 拷贝['tokenizer.json', "preprocessor_config.json"]到merge目录下
 '''
-def _files_base_to_merge():
+def _files_base_to_merge(save_abspath):
     wait_for_copy = ['tokenizer.json', "preprocessor_config.json"]
     sourcedir_files = [f for f in wait_for_copy if os.path.isfile(os.path.join(paths['MODEL_PATH'], f))]
-    mergedir_files = [f for f in wait_for_copy if os.path.isfile(os.path.join(paths['MERGE_MODEL_SAVEPATH'], f))]
+    mergedir_files = [f for f in wait_for_copy if os.path.isfile(os.path.join(save_abspath, f))]
     # 找到原模型文件夹中有，但merge文件夹中没有的文件
     diff_files = [sf for sf in sourcedir_files if sf not in mergedir_files]
-    print(diff_files)
     # 用于最后验证，是否全部拷完
     file_diff_num = len(diff_files)
     # 结束后被拷贝的文件数量
     copy_file_num = 0
     for file_wait_copy in diff_files:
         try:
-            from_file = os.path.join(paths['MODEL_PATH, file_wait_copy'])
-            to_file = os.path.join(paths['MERGE_MODEL_SAVEPATH, file_wait_copy'])
+            from_file = os.path.join(paths['MODEL_PATH'], file_wait_copy)
+            to_file = os.path.join(save_abspath, file_wait_copy)
             shutil.copyfile(from_file, to_file)
             copy_file_num = copy_file_num + 1
         except Exception:
@@ -41,8 +40,10 @@ def _files_base_to_merge():
 
 '''
 合并基座模型和peft checkpoint模型
+checkpoint_abspath: peft checkpoint模型路径
+save_abspath: 合并后的模型保存路径(带checkpoint标志)
 '''
-def _merge_model():
+def _merge_model(checkpoint_abspath, save_abspath):
 
     base_model = WhisperForConditionalGeneration.from_pretrained(
         paths['MODEL_PATH'],
@@ -50,18 +51,22 @@ def _merge_model():
         torch_dtype=torch.float32, # 在ct2转换时，如果指定的--quantization float16，这里必须时float16
         device_map="auto"
     )
-    peft_model = PeftModel.from_pretrained(base_model, os.path.join(paths['MODEL_OUT_DIR'], paths['PEFT_MODEL_ID']))
+    peft_model = PeftModel.from_pretrained(base_model, checkpoint_abspath)
     model = peft_model.merge_and_unload()
 
     tokenizer = WhisperTokenizer.from_pretrained(paths['MODEL_PATH'])
     # 保存合并后的模型
-    model.save_pretrained(paths['MERGE_MODEL_SAVEPATH'])
-    tokenizer.save_pretrained(paths['MERGE_MODEL_SAVEPATH'])
+    model.save_pretrained(save_abspath)
+    tokenizer.save_pretrained(save_abspath)
 
 def merge_peft_model():
-    _merge_model()
-    _files_base_to_merge()
+    for step, peft_id in enumerate(os.listdir(paths['MODEL_OUT_DIR'])):
+        checkpoint_abspath = os.path.join(paths['MODEL_OUT_DIR'], peft_id)
+        save_abspath = os.path.join(paths['MERGE_MODEL_SAVEPATH'], peft_id)
+        print(f'step {step} -- from {checkpoint_abspath} -- save_abspath {save_abspath}')
+        _merge_model(checkpoint_abspath, save_abspath)
+        _files_base_to_merge(save_abspath)
 
-# 二分法查找
+merge_peft_model()
 
 

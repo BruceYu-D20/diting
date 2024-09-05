@@ -2,7 +2,7 @@ import os
 
 import evaluate
 from peft import PeftModel
-from transformers import WhisperForConditionalGeneration, WhisperProcessor
+from transformers import WhisperForConditionalGeneration, WhisperProcessor, WhisperTokenizer
 from datasets import load_from_disk, concatenate_datasets, DatasetDict, Audio
 from tools.utils import *
 import torch
@@ -12,12 +12,23 @@ import numpy as np
 import gc
 from tools.DataCollatorSpeechSeq2SeqWithPadding import DataCollatorSpeechSeq2SeqWithPadding
 
+'''
+wer:
+118.8
+290.8
+183.6
+271.6
+284.4
+312.8
+346
+305.2
+294.8
+256
+'''
 
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()
-
-# 获取所有的checkpoint dir
-checkpoint_dirs = [d for d in os.listdir(paths['MODEL_OUT_DIR']) if os.path.isdir(os.path.join(paths['MODEL_OUT_DIR'], d))]
+print(paths)
 
 base_model = WhisperForConditionalGeneration.from_pretrained(
         paths['MODEL_PATH'],
@@ -39,9 +50,8 @@ def _prepare_dataset(batch):
     batch["labels"] = tokenizer(batch["sentence"]).input_ids
     return batch
 
-ds = load_from_disk(paths['DATASET_PATH'])
+ds = load_from_disk(paths['DATASET_PATH'], split='test')
 common_voice = DatasetDict()
-common_voice['train'] = concatenate_datasets([ds['train'], ds['validation']])
 common_voice['test'] = ds['test']
 common_voice = common_voice.cast_column("audio", Audio(sampling_rate=16000))
 common_voice = common_voice.map(_prepare_dataset, remove_columns=common_voice.column_names["train"])
@@ -51,16 +61,18 @@ data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 # 使用4个进程同时eval
 eval_dataloader = DataLoader(common_voice["test"], batch_size=50, collate_fn=data_collator, num_workers=4)
 
-# 加载wer metrics
-metric_wer = evaluate.load(os.path.join(paths['METRICS_PATH'], "wer"))
-metric_cer = evaluate.load(os.path.join(paths['METRICS_PATH'], "cer"))
+print(common_voice)
+# 获取所有的checkpoint dir
+checkpoint_dirs = [d for d in os.listdir(paths['MODEL_OUT_DIR']) if os.path.isdir(os.path.join(paths['MODEL_OUT_DIR'], d))]
 
 # 如果当前目录下cr.txt存在，就删除
 if os.path.exists('er.txt'):
     os.remove('er.txt')
 
 for checkpoint_dir in checkpoint_dirs:
-    # model
+    # 加载wer metrics
+    metric_wer = evaluate.load(os.path.join(paths['METRICS_PATH'], "wer"))
+    metric_cer = evaluate.load(os.path.join(paths['METRICS_PATH'], "cer"))
     # 加载本地checkpoint，此dir是peft的参数
     model = PeftModel.from_pretrained(base_model, os.path.join(paths['MODEL_OUT_DIR'], checkpoint_dir))
     # 模型评估
@@ -74,26 +86,29 @@ for checkpoint_dir in checkpoint_dirs:
                         decoder_input_ids=batch["labels"][:, :4].to('cuda'),
                         max_new_tokens=255,
                     )
+                    .to('cuda')
                     .cpu()
                     .numpy()
                 )
                 labels = batch["labels"].cpu().numpy()
                 labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-                decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
-                decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+                decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True, normalize=True)
+                decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True, normalize=True)
                 metric_wer.add_batch(
                     predictions=decoded_preds,
                     references=decoded_labels,
                 )
-                metric_wer.add_batch(
+                metric_cer.add_batch(
                     predictions=decoded_preds,
                     references=decoded_labels,
                 )
+
         del generated_tokens, labels, batch
         gc.collect()
     wer = 100 * metric_wer.compute()
     cer = 100 * metric_cer.compute()
     # 将{"wer": wer, "cer": cer}的结果写入到当前目录下 er.txt中
-    with open("er.txt", "a") as f:
+    with open('er.txt', 'a') as f:
         f.write(f"{checkpoint_dir} {wer} {cer}\n")
-    print({"wer": wer, "cer": cer})
+    print(f"{checkpoint_dir} {wer}")
+    
