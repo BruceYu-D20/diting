@@ -48,7 +48,7 @@ def _merge_model(checkpoint_abspath, save_abspath):
     base_model = WhisperForConditionalGeneration.from_pretrained(
         paths['MODEL_PATH'],
         low_cpu_mem_usage=True,
-        torch_dtype=torch.float32, # 在ct2转换时，如果指定的--quantization float16，这里必须时float16
+        torch_dtype=torch.float16, # 在ct2转换时，如果指定的--quantization float16，这里必须时float16
         device_map="auto"
     )
     peft_model = PeftModel.from_pretrained(base_model, checkpoint_abspath)
@@ -67,6 +67,9 @@ def merge_peft_model():
         _merge_model(checkpoint_abspath, save_abspath)
         _files_base_to_merge(save_abspath)
 
-merge_peft_model()
+def main():
+    merge_peft_model()
 
+if __name__ == '__main__':
+    main()
 
