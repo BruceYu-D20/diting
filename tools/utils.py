@@ -12,7 +12,7 @@ def _dir_sufix():
     current_date = datetime.now().strftime('%Y%m%d')
     current_time = int(time.time()) % 86400
     suffix = f"{current_date}.{current_time}"
-    suffix = '20240902.2790'
+    # suffix = '20240902.2790'
     return suffix
 
 def create_sign_begin():
