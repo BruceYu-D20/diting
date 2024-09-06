@@ -11,14 +11,16 @@ CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
 
 # 数据集加载
 ds = load_from_disk(paths['DATASET_PATH'])
-test_ds = ds['test'].select(range(2))
+# test_ds = ds['test'].select(range(2))
+test_ds = ds['test']
 print(test_ds)
 
 for step, checkpoint_dir in enumerate(os.listdir(CT2_MERGE_MODEL_SAVEPATH)):
     # test
+    '''
     if step > 1:
         break
-
+    '''
     print(f'{step} -- {checkpoint_dir}')
     model_path = os.path.join(CT2_MERGE_MODEL_SAVEPATH, checkpoint_dir)
 
@@ -58,12 +60,10 @@ for step, checkpoint_dir in enumerate(os.listdir(CT2_MERGE_MODEL_SAVEPATH)):
     for pre,ref in zip(predictions, references):
         print(f'pre: {pre} -- ref: {ref}')
     # 测评
-    '''
     metric_wer = evaluate.load(os.path.join(paths['METRICS_PATH'], "wer"))
     metric_cer = evaluate.load(os.path.join(paths['METRICS_PATH'], "cer"))
     wer = metric_wer.compute(predictions=predictions, references=references)
     cer = metric_cer.compute(predictions=predictions, references=references)
     print(f'wer: {wer} -- cer: {cer}')
-    '''
 
 
