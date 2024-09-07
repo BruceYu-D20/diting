@@ -39,3 +39,12 @@ def path_with_datesuffix():
                  "MERGE_MODEL_SAVEPATH": mergemodel_suffix, "CT2_MERGE_MODEL_SAVEPATH": ct2_mergemodel_suffix}
     print(path_dict)
     return path_dict
+
+def find_last_n_checkpoint(n: int):
+    checkpoint_dirs = os.listdir(path_with_datesuffix()["CT2_MERGE_MODEL_SAVEPATH"])
+    checkpoint_ids = [int(checkpoint_dir.split('-')[0]) for checkpoint_dir in checkpoint_dirs]
+    # 保留checkpoint中最大的n个数
+    checkpoint_ids = sorted(checkpoint_ids, reverse=True)[:n]
+    last_n_checkpoint = [f'checkpoint-{checkpoint_id}' for checkpoint_id in checkpoint_ids]
+    return last_n_checkpoint
+

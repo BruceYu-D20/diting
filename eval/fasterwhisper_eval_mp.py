@@ -1,24 +1,35 @@
-from faster_whisper import WhisperModel, BatchedInferencePipeline
-from tools.utils import *
 import os
-from datasets import load_from_disk, load_dataset
+from datasets import load_dataset
 from tqdm import tqdm
 import evaluate
+from faster_whisper import WhisperModel, BatchedInferencePipeline
+from multiprocessing import Pool
+from tools.utils import *
+import time
 from pathlib import Path
 import re
 
+# 获取所有的数据读写路径
+paths = path_with_datesuffix()
+CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
+print(paths['DATASET_PATH'])
+
+# 加载数据集
+def _prepare_data(sample):
+    path = Path(sample['path'])
+    path = path.as_posix()
+    linux_path = path.replace('\\', '/')
+    linux_path = linux_path.replace('E:', '/data')
+    sample['linux_path'] = linux_path
+    return sample
+
+
+# 去除阿拉伯文的标符
 def remove_arabic_diacritics(text):
     # 匹配阿拉伯语中的标符（元音符号等）
     arabic_diacritics = re.compile(r'[\u0610-\u061A\u064B-\u065F\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]')
     # 使用正则表达式去除标符
     return re.sub(arabic_diacritics, '', text)
-
-# 获取所有的数据读写路径
-paths = path_with_datesuffix()
-CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
-
-# 数据集加载
-# ds = load_from_disk(paths['DATASET_PATH'])
 
 def _prepare_data(sample):
     path = Path(sample['path'])
@@ -34,16 +45,18 @@ test_ds = load_dataset('mozilla-foundation/common_voice_17_0',
                        cache_dir=paths['DATASET_PATH'],
                        )['test']
 # test_ds = ds['test'].select(range(2))
-test_ds = test_ds.remove_columns(['client_id', 'audio', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'segment'])
+test_ds = test_ds.remove_columns(['client_id', 'audio', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'segment', 'variant'])
 test_ds = test_ds.map(_prepare_data)
+print(test_ds)
+print(test_ds[:1])
 
-for step, checkpoint_dir in enumerate(os.listdir(CT2_MERGE_MODEL_SAVEPATH)):
+def process_checkpoint(checkpoint_dir):
+    """每个进程执行的函数，处理一个 checkpoint_dir"""
     model_path = os.path.join(CT2_MERGE_MODEL_SAVEPATH, checkpoint_dir)
+    print(f"Processing model: {model_path}")
 
     # 存储预测结果和实际结果，用于cer计算
-    # 存储预测结果
     predictions = []
-    # 存储实际结果
     references = []
 
     # 加载模型
@@ -56,7 +69,8 @@ for step, checkpoint_dir in enumerate(os.listdir(CT2_MERGE_MODEL_SAVEPATH)):
 
     batched_model = BatchedInferencePipeline(model=model, use_vad_model=True, chunk_length=20)
 
-    for sample in tqdm(test_ds):
+    # 逐个推理
+    for step, sample in enumerate(tqdm(test_ds)):
         try:
             language = sample['locale'] if sample['locale'] is not None else None
             segments, info = batched_model.transcribe(
@@ -73,13 +87,38 @@ for step, checkpoint_dir in enumerate(os.listdir(CT2_MERGE_MODEL_SAVEPATH)):
             predictions.append(prediction)
             references.append(reference)
         except Exception as e:
-            continue
+            print(e)
 
     # 测评
     metric_wer = evaluate.load(os.path.join(paths['METRICS_PATH'], "wer"))
     metric_cer = evaluate.load(os.path.join(paths['METRICS_PATH'], "cer"))
     wer = metric_wer.compute(predictions=predictions, references=references)
     cer = metric_cer.compute(predictions=predictions, references=references)
-    # 将wer cer以追加的形式写道当前目录下的eval_er.txt中
-    with open(os.path.join(paths['LOGGING_DIR'], "eval_er.txt"), "a") as f:
+
+    print(f'Model {checkpoint_dir} -- WER: {wer}, CER: {cer}')
+    with open(os.path.join(paths['LOGGING_DIR'], "eval_er_4.txt"), "a") as f:
         f.write(f'{checkpoint_dir} -- wer: {wer} -- cer: {cer}\n')
+
+    return wer, cer
+
+if __name__ == "__main__":
+    #开始执行时间
+    start_time = time.time()
+    # 获取所有的 checkpoint_dir
+    checkpoint_dirs = os.listdir(CT2_MERGE_MODEL_SAVEPATH)
+
+    # 创建进程池，启动多个进程
+    with Pool(processes=4) as pool:  # 这里的 processes 参数可以根据你的 CPU 核心数进行调整
+        # 向进程池分发任务
+        results = pool.map(process_checkpoint, checkpoint_dirs)
+    pool.close()
+    pool.join()
+
+    # 计算所有线程返回结果的平均值
+    total_wer = sum(result[0] for result in results) / len(results)
+    total_cer = sum(result[1] for result in results) / len(results)
+
+    print(f"平均的 WER: {total_wer} 平均的 CER: {total_cer}")
+    # 结束执行时间
+    end_time = time.time()
+    print(f"执行时间: {end_time - start_time}秒")
