@@ -9,6 +9,11 @@ import time
 from pathlib import Path
 import re
 
+'''
+微调后生成的faster-whisper模型
+用于评估训练后模型的错误率
+'''
+
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()
 CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
@@ -96,7 +101,7 @@ def process_checkpoint(checkpoint_dir):
     cer = metric_cer.compute(predictions=predictions, references=references)
 
     print(f'Model {checkpoint_dir} -- WER: {wer}, CER: {cer}')
-    with open(os.path.join(paths['LOGGING_DIR'], "eval_er_4.txt"), "a") as f:
+    with open(os.path.join(paths['LOGGING_DIR'], "eval_er_2.txt"), "a") as f:
         f.write(f'{checkpoint_dir} -- wer: {wer} -- cer: {cer}\n')
 
     return wer, cer
@@ -108,7 +113,7 @@ if __name__ == "__main__":
     checkpoint_dirs = os.listdir(CT2_MERGE_MODEL_SAVEPATH)
 
     # 创建进程池，启动多个进程
-    with Pool(processes=4) as pool:  # 这里的 processes 参数可以根据你的 CPU 核心数进行调整
+    with Pool(processes=2) as pool:  # 这里的 processes 参数可以根据你的 CPU 核心数进行调整
         # 向进程池分发任务
         results = pool.map(process_checkpoint, checkpoint_dirs)
     pool.close()
