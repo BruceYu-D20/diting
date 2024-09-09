@@ -25,9 +25,10 @@ def remove_arabic_diacritics(text):
 paths = path_with_datesuffix()
 CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
 
-# 数据集加载
-# ds = load_from_disk(paths['DATASET_PATH'])
-
+'''
+准备数据集：
+将windows下的路径格式变成linux的路径格式，删除无用的数据列，并添加一列linux_path，用于存储数据在linux下的路径
+'''
 def _prepare_data(sample):
     path = Path(sample['path'])
     path = path.as_posix()
@@ -45,7 +46,16 @@ test_ds = load_dataset('mozilla-foundation/common_voice_17_0',
 test_ds = test_ds.remove_columns(['client_id', 'audio', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'segment'])
 test_ds = test_ds.map(_prepare_data)
 
+'''
+将数据集分成n份，用于多进程处理
+'''
 def split_ds_to_pices(n: int, ds_len: int) -> list:
+    '''
+    将数据集分成n份
+    :param n: 份数
+    :param ds_len: 数据集长度
+    :return: 数据集在各split点的index
+    '''
 
     # 计算每份的长度
     length_of_each_part = ds_len // n
@@ -64,9 +74,16 @@ def split_ds_to_pices(n: int, ds_len: int) -> list:
 ds_split_idx = split_ds_to_pices(4, len(test_ds))
 # 把切分的数据集放到DatasetDict中，key是split_0, split_1, split_2, split_3
 splited_datasets = DatasetDict()
+# zip用于组合每一份数据的起始位置和结束位置
 for step, start_and_end in enumerate(zip(ds_split_idx[:-1], ds_split_idx[1:])):
+    '''
+    例如列表的值是[0,100,200,300,400]，会zip([0,100,200,300], [100,200,300,400])
+    zip的结果是[(0,100), (100,200), (200,300), (300,400)]
+    ds.select(range(0,100))就会抽取原数据集中下标0-100的数据
+    '''
     splited_datasets[f'split_{step}'] = test_ds.select(range(start_and_end[0], start_and_end[1]))
 
+# 基座模型的eval方法
 def asr_eval(datasets_key: str):
     # 存储预测结果和实际结果，用于cer计算
     # 存储预测结果(去掉标符)
