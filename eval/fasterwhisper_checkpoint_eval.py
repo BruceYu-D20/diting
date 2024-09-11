@@ -13,7 +13,6 @@ import re
 微调后生成的faster-whisper模型
 用于评估训练后模型的错误率
 '''
-
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()
 CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
@@ -29,13 +28,6 @@ def _prepare_data(sample):
     return sample
 
 
-# 去除阿拉伯文的标符
-def remove_arabic_diacritics(text):
-    # 匹配阿拉伯语中的标符（元音符号等）
-    arabic_diacritics = re.compile(r'[\u0610-\u061A\u064B-\u065F\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]')
-    # 使用正则表达式去除标符
-    return re.sub(arabic_diacritics, '', text)
-
 def _prepare_data(sample):
     path = Path(sample['path'])
     path = path.as_posix()
@@ -49,7 +41,6 @@ test_ds = load_dataset('mozilla-foundation/common_voice_17_0',
                        'ar',
                        cache_dir=paths['DATASET_PATH'],
                        )['test']
-# test_ds = ds['test'].select(range(2))
 test_ds = test_ds.remove_columns(['client_id', 'audio', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'segment', 'variant'])
 test_ds = test_ds.map(_prepare_data)
 print(test_ds)

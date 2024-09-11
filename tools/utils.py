@@ -3,6 +3,7 @@ from datetime import datetime
 import time
 from tools import common
 import functools
+import re
 
 '''
 获取当天时间.当前时间对当天零点的秒数
@@ -48,3 +49,9 @@ def find_last_n_checkpoint(n: int):
     last_n_checkpoint = [f'checkpoint-{checkpoint_id}' for checkpoint_id in checkpoint_ids]
     return last_n_checkpoint
 
+# 去除阿拉伯文的标符
+def remove_arabic_diacritics(text):
+    # 匹配阿拉伯语中的标符（元音符号等）
+    arabic_diacritics = re.compile(r'[\u0610-\u061A\u064B-\u065F\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]')
+    # 使用正则表达式去除标符
+    return re.sub(arabic_diacritics, '', text)
