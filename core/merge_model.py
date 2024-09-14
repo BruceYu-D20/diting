@@ -9,7 +9,7 @@ from transformers import WhisperForConditionalGeneration, WhisperTokenizer
 import os
 import shutil
 import torch
-from tools.utils import path_with_datesuffix
+from util.utils import path_with_datesuffix
 
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()

@@ -4,7 +4,7 @@ from tqdm import tqdm
 import evaluate
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 from multiprocessing import Pool
-from tools.utils import *
+from util.utils import *
 import time
 from pathlib import Path
 import re

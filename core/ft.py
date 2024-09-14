@@ -7,9 +7,9 @@ import evaluate
 from transformers import BitsAndBytesConfig, WhisperProcessor, WhisperForConditionalGeneration, Seq2SeqTrainer
 from peft import prepare_model_for_kbit_training
 from peft import LoraConfig, get_peft_model
-from tools.features import *
+from util.features import *
 from torch.utils.tensorboard import SummaryWriter
-from tools.utils import path_with_datesuffix
+from util.utils import path_with_datesuffix
 from transformers import Seq2SeqTrainingArguments
 
 def create_model(paths):

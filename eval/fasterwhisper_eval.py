@@ -1,7 +1,7 @@
 import time
 
 from faster_whisper import WhisperModel, BatchedInferencePipeline
-from tools.utils import *
+from util.utils import *
 import os
 from datasets import load_from_disk, load_dataset, DatasetDict
 from tqdm import tqdm
@@ -56,7 +56,6 @@ def split_ds_to_pices(n: int, ds_len: int) -> list:
     :param ds_len: 数据集长度
     :return: 数据集在各split点的index
     '''
-
     # 计算每份的长度
     length_of_each_part = ds_len // n
     # 创建一个空列表来存储每份的最后一个元素的下标
