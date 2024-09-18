@@ -9,12 +9,16 @@ import evaluate
 from pathlib import Path
 import re
 from multiprocessing import Pool
+import numpy as np
+import torch
 
 '''
 faster-whisper的基座模型eval
 用于比较和checkpoint模型的错误率。
 
-用语音文件进行训练
+用audio.array字段进行训练
+不用在处理audio字段的path；
+需要提前把语音文件变成datasets.features.Audio格式；
 '''
 
 def remove_arabic_diacritics(text):
@@ -27,26 +31,14 @@ def remove_arabic_diacritics(text):
 paths = path_with_datesuffix()
 CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
 
-'''
-准备数据集：
-将windows下的路径格式变成linux的路径格式，删除无用的数据列，并添加一列linux_path，用于存储数据在linux下的路径
-'''
-def _prepare_data(sample):
-    path = Path(sample['path'])
-    path = path.as_posix()
-    linux_path = path.replace('\\', '/')
-    linux_path = linux_path.replace('E:', '/data')
-    sample['linux_path'] = linux_path
-    return sample
-
 print(paths['DATASET_PATH'])
+'''
 test_ds = load_dataset('mozilla-foundation/common_voice_17_0',
                        'ar',
                        cache_dir=paths['DATASET_PATH'],
                        )['test']
-# test_ds = ds['test'].select(range(2))
-test_ds = test_ds.remove_columns(['client_id', 'audio', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'segment'])
-test_ds = test_ds.map(_prepare_data)
+'''
+test_ds = load_from_disk(paths['DATASET_PATH'])['test']
 
 '''
 将数据集分成n份，用于多进程处理
@@ -108,13 +100,14 @@ def asr_eval(datasets_key: str):
     batched_model = BatchedInferencePipeline(model=model, use_vad_model=True, chunk_length=20)
 
     for sample in tqdm(splited_datasets[datasets_key]):
+        audio = sample['audio']['array']
         try:
             if 'locale' in sample.keys():
                 language = sample['locale'] if sample['locale'] is not None else None
             else:
                 language = None
             segments, info = batched_model.transcribe(
-                sample['linux_path'],
+                audio = torch.tensor(audio, dtype=torch.float32),  # np.ndarray
                 language=language,
                 task='transcribe',
                 beam_size=5,
@@ -131,6 +124,7 @@ def asr_eval(datasets_key: str):
             predictions.append(prediction)
             references.append(reference)
         except Exception as e:
+            print(e)
             continue
 
     # 测评
