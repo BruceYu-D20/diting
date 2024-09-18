@@ -21,23 +21,11 @@ faster-whisper的基座模型eval
 需要提前把语音文件变成datasets.features.Audio格式；
 '''
 
-def remove_arabic_diacritics(text):
-    # 匹配阿拉伯语中的标符（元音符号等）
-    arabic_diacritics = re.compile(r'[\u0610-\u061A\u064B-\u065F\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]')
-    # 使用正则表达式去除标符
-    return re.sub(arabic_diacritics, '', text)
-
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()
 CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
-
 print(paths['DATASET_PATH'])
-'''
-test_ds = load_dataset('mozilla-foundation/common_voice_17_0',
-                       'ar',
-                       cache_dir=paths['DATASET_PATH'],
-                       )['test']
-'''
+
 test_ds = load_from_disk(paths['DATASET_PATH'])['test']
 
 '''
