@@ -89,7 +89,7 @@ def process_checkpoint(checkpoint_dir, paths: dict, model_id: str):
     cer_ad = metric_cer.compute(predictions=references_with_ad, references=references)
 
     print(f'Model {checkpoint_dir} -- WER: {wer}, CER: {cer} -- WER带标符: {wer_ad}, CER去标符: {cer_ad}')
-    with open(os.path.join(paths['LOGGING_DIR'], f"eval/asr_{model_id}_{checkpoint_dir}.txt"), "a") as f:
+    with open(os.path.join(paths['LOGGING_DIR'], f"eval/asr_cp_{model_id}_array.txt"), "a") as f:
         f.write(f'Model {checkpoint_dir} -- WER: {wer}, CER: {cer} -- WER_AD: {wer_ad}, CER_AD: {cer_ad}')
 
     return wer, cer, wer_ad, cer_ad
@@ -103,7 +103,7 @@ def main(model_id=None):
     print(f"查看{config_path}是否存在")
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"eval.yaml不存在：{config_path}")
-    # 验证逻辑
+    # 取转换后的模型地址
     paths: dict = path_with_datesuffix(model_id)
     CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
     # 获取所有的 checkpoint_dir
