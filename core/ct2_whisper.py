@@ -2,8 +2,7 @@ import os
 from util.utils import *
 
 # 获取所有的数据读写路径
-def ctranslate_whisper():
-    paths = path_with_datesuffix()
+def ctranslate_whisper(paths):
     MERGE_MODEL_SAVEPATH = paths['MERGE_MODEL_SAVEPATH']
     CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
 
@@ -17,8 +16,9 @@ def ctranslate_whisper():
         os.system(ct_cmd)
 
 
-def main():
-    ctranslate_whisper()
+def main(paths: dict):
+    ctranslate_whisper(paths)
 
 if __name__ == '__main__':
-    main()
+    paths = path_with_datesuffix()
+    main(paths)

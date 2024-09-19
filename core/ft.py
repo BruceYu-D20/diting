@@ -40,14 +40,17 @@ def _prepare_dataset(batch, processor):
     batch["labels"] = processor.tokenizer(batch["sentence"]).input_ids
     return batch
 
-def prepare_data(paths):
+def prepare_data(paths, processor):
     # 数据集
     ds = load_from_disk(paths['DATASET_PATH'])
     common_voice = DatasetDict()
     common_voice['train'] = concatenate_datasets([ds['train'], ds['validation']])
     common_voice['test'] = ds['test']
     common_voice = common_voice.cast_column("audio", Audio(sampling_rate=16000))
-    common_voice = common_voice.map(_prepare_dataset, remove_columns=common_voice.column_names["train"], num_proc=4)
+    common_voice = common_voice.map(
+        lambda batch: _prepare_dataset(batch, processor),
+        remove_columns=common_voice.column_names["train"],
+        num_proc=4)
     return common_voice
 
 def create_metrics_methods(paths):
@@ -134,15 +137,14 @@ def create_trainer(model, processor, common_voice, paths, data_collator):
     )
     return trainer
 
-def main():
-    # 获取所有的数据读写路径
-    paths = path_with_datesuffix()
+def main(paths: dict):
     model, processor = create_model(paths)
-    train_datasets = prepare_data(paths)
+    train_datasets = prepare_data(paths, processor)
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
     metric_wer, metric_cer = create_metrics_methods(paths)
     trainer = create_trainer(model, processor, train_datasets, paths, data_collator)
     trainer.train()
 
 if __name__ == '__main__':
-    main()
+    paths = path_with_datesuffix()
+    main(paths)

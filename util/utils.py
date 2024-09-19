@@ -27,10 +27,13 @@ def del_sign_last():
     if os.path.exists(os.path.join(common.PROJECT_PATH, "sign.txt")):
         os.remove(os.path.join(common.PROJECT_PATH, "sign.txt"))
 
-def path_with_datesuffix():
+def path_with_datesuffix(model_dir: str == None) -> dict:
     # 读取sign.txt文件的内容
-    with open(os.path.join(common.PROJECT_PATH, "sign.txt"), 'r') as f:
-        time_suffix = f.read()
+    if model_dir == None:
+        with open(os.path.join(common.PROJECT_PATH, "sign.txt"), 'r') as f:
+            time_suffix = f.read()
+    else:
+        time_suffix = model_dir
     logdir_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "log_dir"), time_suffix)
     modleout_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "model_out"), time_suffix)
     mergemodel_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "merged_model"), time_suffix)
