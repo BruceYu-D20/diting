@@ -18,9 +18,10 @@ import os
 '''
 
 # DATA_CACHE_DIR 在服务器端不要改动
-DATA_CACHE_DIR = 'D:/mytest_17/download/17_dataset'
+DATA_CACHE_DIR = 'E:/huggingface/common_17_ar'
 # 本机存储arrow的地址
-SAVED_ARROW_PATH = os.path.join(DATA_CACHE_DIR, "save_arrow")
+# SAVED_ARROW_PATH = os.path.join(DATA_CACHE_DIR, "save_arrow")
+SAVED_ARROW_PATH = 'F:/common_17/save_arrow/en'
 # 要修改成的服务器地址，下一层就是downloads文件夹
 DATA_LINUX_PATH = '/data/huggingface/test_modify/17_dataset'
 # 服务器新生成arrow的地址
@@ -50,15 +51,14 @@ def download_and_save_arrow():
     先核实
     '''
     if not os.path.exists(SAVED_ARROW_PATH):
-        print(f'{SAVED_ARROW_PATH}不存在，开始下载')
         en_datasets = load_dataset(
-            'mozilla-foundation/common_voice_17_0',
-            'af',
+            path='mozilla-foundation/common_voice_17_0',
+            name='en',
             cache_dir=DATA_CACHE_DIR,
             trust_remote_code=True,
-            )
-
-        en_datasets.save_to_disk(SAVED_ARROW_PATH)
+            token='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',
+        )
+        en_datasets.save_to_disk(SAVED_ARROW_PATH, num_proc=8)
     else:
         print(f'{SAVED_ARROW_PATH}存在，读取缓存数据')
 
@@ -85,5 +85,8 @@ def main():
     else:
         raise ValueError('--env的值，只能传入local或server')
 
+def local_test():
+    download_and_save_arrow()
+
 if __name__ == '__main__':
-    main()
+    local_test()

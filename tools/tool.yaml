@@ -1,0 +1,14 @@
+change_audio2array:
+  data_rootpath: D:/data/audio/origin
+  en:
+    enable: no
+    save_path: D:/data/audio/ft_audio/en
+  ar:
+    enable: no
+    save_path: D:/data/audio/ft_audio/ar
+  zh:
+    enable: yes
+    save_path: D:/data/audio/ft_audio/zh
+  he:
+    enable: no
+    save_path: D:/data/audio/ft_audio/he

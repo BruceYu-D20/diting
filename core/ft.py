@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
+import os.path
 from datasets import load_from_disk, DatasetDict,concatenate_datasets
 from datasets import Audio
 import evaluate
@@ -45,7 +45,7 @@ def prepare_data(paths, processor):
     ds = load_from_disk(paths['DATASET_PATH'])
     common_voice = DatasetDict()
     common_voice['train'] = concatenate_datasets([ds['train'], ds['validation']])
-    common_voice['test'] = ds['test']
+    # common_voice['test'] = ds['test']
     common_voice = common_voice.cast_column("audio", Audio(sampling_rate=16000))
     common_voice = common_voice.map(
         lambda batch: _prepare_dataset(batch, processor),
@@ -81,7 +81,7 @@ def create_trainer(model, processor, common_voice, paths, data_collator):
     # 定义Seq2Seq训练参数
     training_args = Seq2SeqTrainingArguments(
         output_dir=paths['MODEL_OUT_DIR'],  # 设置模型输出目录，可以根据需要更改
-        logging_dir=paths['LOGGING_DIR'],  # 设置日志目录
+        logging_dir=paths['TENSORBOARD_LOGDIR'],  # 设置日志目录
         logging_steps=1,  # 每一步记录一次日志
         num_train_epochs=5,  # 训练10个epoch
         per_device_train_batch_size=150,  # 每个设备的训练批次大小为128

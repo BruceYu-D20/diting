@@ -22,7 +22,9 @@ pcm格式转wav：ffmpeg -ar 原始采样率 -f s16le -i 原始文件 -ar 16000 
 
 其他格式转wav：ffmpeg -i 原始文件 -ar 16000 -y 输出文件
 
-验证脚本待补充，脚本功能是验证是否所有语音文件都转成了wav，16_000，转换的条数是否和原始语音文件个数匹配
+上面两步会封装成脚本，后续开发。
+
+验证功能会开发成脚本，脚本功能是验证是否所有语音文件都转成了wav，16_000，转换的条数是否和原始语音文件个数匹配。待开发
 
 ### 2.3 数据存放
 
@@ -43,7 +45,7 @@ pcm格式转wav：ffmpeg -ar 原始采样率 -f s16le -i 原始文件 -ar 16000 
 
 | 目录                          | 作用                     |
 | ----------------------------- | ------------------------ |
-| /data/audio/origin/{languege} | 存放待处理的原始语音文件 |
+| /data/audio/origin/{language} | 存放待处理的原始语音文件 |
 | /data/audio/ft_audio/{date}   | 存放微调读取的语音格式   |
 
 eg.
@@ -56,59 +58,83 @@ eg.
 
 2025/01/01日处理的文件存放在/data/audio/ft_audio/20250101目录下
 
-#### 2.3.3 语音文件存放规范
+#### 2.3.3 语音文件存放样例
 
-- 每一批数据以一个文件夹存放。存放完成后，放入一个和文件夹同名的**数据excel**文件，excel和数据文件夹在同一文件目录层级下。
-- 脚本根据excel的名称去处理同名的数据文件夹，数据处理完后不可变，所以在执行脚本之前，请确认所有数据已经全部放入。
-- 脚本可以同时处理多个excel
+- 每一批语音数据以一个文件夹存放，文件名为日期，格式为yyyyMMdd。
+- 语音数据文件夹的同层会有一个或多个csv文件，每个csv代表处理一个或几个语音数据文件夹
+- 每个csv的内容包含语音文件的绝对路径和文本内容。
+- 脚本可以同时处理多个csv文件
 
 eg.
 
 ```
 /data/audio/origin
 |--  ar
-     |--  batch_1.xlxs
-     |--  batch_1
+     |--  audio_20240101-20240103.csv
+     |--  20240101
           |--  ar_audio_1_1.wav
           |--  ar_audio_1_2.wav
           |--  ......
-     |--  batch_2.xlxs
-     |--  batch_2
+     |--  20240102
           |--  ar_audio_2_1.wav
           |--  ar_audio_2_2.wav
           |--  ......
-|--  en
-     |--  batch_3.xlxs
-     |--  batch_3
+     |--  20240108
           |--  ar_audio_3_1.wav
           |--  ar_audio_3_2.wav
           |--  ......
-     |--  batch_4.xlxs
-     |--  batch_4
+|--  en
+     |--  audio_20240101-20240103.csv
+     |--  20240102
+          |--  ar_audio_3_1.wav
+          |--  ar_audio_3_2.wav
+          |--  ......
+     |--  20240103
           |--  ar_audio_4_1.wav
           |--  ar_audio_4_2.wav
           |--  ......
 ```
 
-  #### 2.3.4 数据excel填写规范
+对例子的说明：
+
+- /data/audio/origin/ar下20240101、20240102、20240108分别为3个批次的语音数据文件
+- audio_20240101-20240103.csv会根据日期范围，处理20240101和20240102中的语音文件
+
+  #### 2.3.4 数据CSV填写样例
 
 数据excel中有2个字段，分别为：语音文件的路径、语音对应的文本
 
 eg.
 
-/data/audio/origin/en目录下，batch_3目录中存放语音文件，batch_3.xlxs存放内容如下：
+/data/audio/origin/en目录下，20240102、20240103目录中存放语音文件，audio_20240101-20240103.csv存放内容如下：
 
 path：语音文件在服务器上的绝对路径
 
 text： 语音对应的文本内容
 
-文件：batch_3.xlxs
+文件：audio_20240101-20240103.csv
 
-| path                                        | text                                       |
-| ------------------------------------------- | ------------------------------------------ |
-| /data/audio/origin/en/batch_3/audio_3_1.wav | this is a script process original audio    |
-| /data/audio/origin/en/batch_3/audio_3_2.wav | jingle bell jingle bell jingle all the way |
-| /data/audio/origin/en/batch_3/audio_3_3.wav | this is peppa pig                          |
+| path                                            | text                                       |
+| ----------------------------------------------- | ------------------------------------------ |
+| /data/audio/origin/en/20240102/ar_audio_3_1.wav | this is a script process original audio    |
+| /data/audio/origin/en/20240102/ar_audio_3_2.wav | jingle bell jingle bell jingle all the way |
+| /data/audio/origin/en/20240103/ar_audio_4_1.wav | this is peppa pig                          |
+| ...                                             | ...                                        |
+
+**注意：CSV文件不加表头，默认第一列为path，第二列为text**
+
+#### 2.3.5 语音文件存放和数据csv填写规则约束
+
+脚本会对以下项目进行规则验证：
+
+- 数据csv文件必须以 **audio_** 开头。例如audio_20240101_20240103.csv
+- 数据csv文件必须包含两个日期，分别代表开始时间和结束时间，格式为yyyyMMdd，两个日期中间用_分隔
+- 数据csv文件的第一个日期必须小于等于第二个日期。例如audio_20240101_20240101.csv和audio_20240101_20240103.csv都是合法文件名
+- 数据csv文件的两个日期区间，必须有可以匹配的日期数据文件夹。例如audio_20240101_20240103.csv可以匹配出20240101、20240102、20240103的语音文件夹
+- 数据csv文件的sentence字段，不能为空
+- 数据csv文件的path字段，path必须存在且是一个文件
+- 数据csv文件的path字段，path必须在可以匹配的日期数据文件夹内
+- 可以匹配的日期数据文件夹内所有语音文件，必须在数据csv文件的path字段中
 
 ### 2.4 数据处理
 
@@ -120,10 +146,41 @@ text： 语音对应的文本内容
 
 ***重要：请查验下面两点事项后，再进行2.4.1的转换操作***
 
-- ***数据已经全部放入/data/audio/{languege}下***
+- ***数据已经全部放入/data/audio/{language}下***
 - ***数据已经转换成wav格式，采样率=16_000***
 
-#### 2.4.1 执行数据处理操作
+#### 2.4.1 配置文件
+
+diting/tools/tool.yaml
+
+```yaml
+change_audio2array:
+  data_rootpath: D:/data/audio/origin
+  en:
+    enable: no
+    save_path: D:/data/audio/ft_audio/en
+  ar:
+    enable: no
+    save_path: D:/data/audio/ft_audio/ar
+  zh:
+    enable: yes
+    save_path: D:/data/audio/ft_audio/zh
+  he:
+    enable: no
+    save_path: D:/data/audio/ft_audio/he
+```
+
+change_audio2array：代表配置是change_audio2array.py类的配置
+
+data_rootpath：数据根目录
+
+en ar zh he：语种文件夹，会和data_rootpath拼接，例如  D:/data/audio/origin/en
+
+enable：本次处理中，是否有该语言的数据需要预处理。取值：[no, yes]。
+
+save_path：该语种处理完的文件存储路径
+
+#### 2.4.2 执行数据处理操作
 
 1. 创建docker容器（不用重复创建）
 
@@ -149,13 +206,21 @@ cd /data/diting
 export PYTHONPATH=/data/diting
 ```
 
-4. 执行数据处理
+4. 检查csv文件
+
+```shell
+python tools/datacsv_check.py
+```
+
+若有报错，请按照报错内容修改csv填充字段
+
+5. 执行数据处理
 
 ```shell
 python tools/change_audio2array.py
 ```
 
-5. 验证
+6. 验证
 
 ```
 python tools/eval_audio2array.py
@@ -351,6 +416,8 @@ python diting.py --run eval --model_id {model_id}
 
 文档：diting/docs
 
+**验证：eval**
+
 测试代码：diting/test
 
 **工具类：tools**
@@ -451,14 +518,6 @@ python core/ct2_whisper.py
 
 diting/ct2_model/{model_id}
 
-微调数据
-
-微调轮数：5
-
-总微调时长：12h11m42s
-
-合并参数时长
-
 ## 6. 测试结果
 
 ### 6.1运行时长 
@@ -492,12 +551,20 @@ GPU：NVIDIA A40 46G x1
 
 基座模型为 Systran/faster-whisper-large-v3
 
-m_165、m_330、m_495、m_460、m_825是5轮微调后的结果模型
+m_165、m_330、m_495、m_660、m_825是5轮微调后的结果模型
 
-|           | 基座   | m_165 | m_330 | m_495 | m_460 | m_825 |
-| --------- | ------ | ----- | ----- | ----- | ----- | ----- |
-| WER       | 0.2667 | 0.208 | 0.201 | 0.202 | 0.205 | 0.375 |
-| CER       | 0.0751 | 0.060 | 0.057 | 0.057 | 0.058 | 0.157 |
-| WER带标符 | 0.4227 | 0.369 | 0.349 | 0.357 | 0.374 | 0.375 |
-| CER带标符 | 0.1654 | 0.155 | 0.144 | 0.144 | 0.157 | 0.157 |
+错误率，模型效果越好
 
+|           | 基座   | m_165  | m_330  | m_495  | m_660  | m_825  |
+| --------- | ------ | ------ | ------ | ------ | ------ | ------ |
+| WER       | 0.2667 | 0.2088 | 0.2011 | 0.2026 | 0.2059 | 0.2087 |
+| CER       | 0.0751 | 0.0601 | 0.0578 | 0.0573 | 0.0585 | 0.0596 |
+| WER带标符 | 0.4227 | 0.3691 | 0.3498 | 0.3572 | 0.3742 | 0.3758 |
+| CER带标符 | 0.1654 | 0.1554 | 0.1440 | 0.1443 | 0.1579 | 0.1576 |
+
+### 6.3 每次启动微调的数据量建议
+
+- 总语音时长：建议每次微调增加100小时以上的语音训练数据
+- 单条语音时长：建议每个语音文件的总时长在10s-20s左右，且是有效时长。太短的片段无法提供足够的信息，太长的片段会增加训练复杂度。合理的时长可以确保模型在处理长段落时的稳定性，同时避免内存和计算资源的过多消耗。
+- 语音完整性：保证每个语音文件中的语音是完整的句子，最大程度保证语义完整
+- 数据多样性：尽量覆盖 **不同的语言场景的语音**，**不同性别、不同年龄的人的语音**。数据量越多、场景越多的数据，越有利于模型的泛化能力。

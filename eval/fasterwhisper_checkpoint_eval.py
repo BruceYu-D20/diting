@@ -15,24 +15,31 @@ import yaml
 微调后生成的faster-whisper模型
 用于评估训练后模型的错误率
 '''
-def parse_evalconfig():
+def parse_evalconfig(data_type):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(current_dir, 'eval.yaml')
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
+    config = read_yaml(config_path)
+    # with open(config_path, 'r') as file:
+    #     config = yaml.safe_load(file)
     print(config)
     print(type(config))
-    array_data_path = config.get("array_data_path")
-    return array_data_path
+    if data_type == 'array':
+        data_path = config.get("array_data_path")
+    else:
+        data_path = config.get("audio_data_path")
+    return data_path
 
-def process_checkpoint(checkpoint_dir, paths: dict, model_id: str):
+def process_checkpoint(checkpoint_dir, paths: dict, model_id: str, data_type: str):
     """每个进程执行的函数，处理一个 checkpoint_dir"""
     CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
     model_path = os.path.join(CT2_MERGE_MODEL_SAVEPATH, checkpoint_dir)
     print(f"Processing model: {model_path}")
 
+    #获取日志文件夹路径
+    eval_logdir = paths['EVAL_LOGDIR']
+
     # 获取eval.yaml中array_data_path的值
-    array_data_path = parse_evalconfig()
+    array_data_path = parse_evalconfig(data_type)
     print(f"array_data_path：{array_data_path}" )
     test_ds = load_from_disk(array_data_path)['test']
 
@@ -89,12 +96,12 @@ def process_checkpoint(checkpoint_dir, paths: dict, model_id: str):
     cer_ad = metric_cer.compute(predictions=references_with_ad, references=references)
 
     print(f'Model {checkpoint_dir} -- WER: {wer}, CER: {cer} -- WER带标符: {wer_ad}, CER去标符: {cer_ad}')
-    with open(os.path.join(paths['LOGGING_DIR'], f"eval/asr_cp_{model_id}_array.txt"), "a") as f:
+    with open(os.path.join(eval_logdir, f"asr_cp_{model_id}_array.txt"), "a") as f:
         f.write(f'Model {checkpoint_dir} -- WER: {wer}, CER: {cer} -- WER_AD: {wer_ad}, CER_AD: {cer_ad}')
 
     return wer, cer, wer_ad, cer_ad
 
-def main(model_id=None):
+def main(model_id=None, data_type='array'):
     # 开始执行时间
     start_time = time.time()
     # 查看eval.yaml文件是否存在
@@ -107,7 +114,7 @@ def main(model_id=None):
     paths: dict = path_with_datesuffix(model_id)
     CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
     # 获取所有的 checkpoint_dir
-    tasks = [(checkpoint_dir, paths, model_id) for checkpoint_dir in os.listdir(CT2_MERGE_MODEL_SAVEPATH)]
+    tasks = [(checkpoint_dir, paths, model_id, data_type) for checkpoint_dir in os.listdir(CT2_MERGE_MODEL_SAVEPATH)]
 
     # 创建进程池，启动多个进程
     with Pool(processes=4) as pool:  # 这里的 processes 参数可以根据你的 CPU 核心数进行调整
@@ -130,4 +137,5 @@ def main(model_id=None):
 
 if __name__ == "__main__":
     model_id = '20240918.29775'
-    main(model_id)
+    data_type = 'array'
+    main(model_id, data_type)
