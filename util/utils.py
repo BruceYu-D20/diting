@@ -1,10 +1,10 @@
 import os
 from datetime import datetime
 import time
-from util import common
 import functools
 import re
 import yaml
+from pathlib import Path
 
 '''
 支持的语言列表
@@ -24,35 +24,39 @@ def _dir_sufix():
     return suffix
 
 def create_sign_begin():
+    config = parse_core_config()
     suffix = _dir_sufix()
     # 将suffix，写入文件sign.txt
-    with open(os.path.join(common.PROJECT_PATH, "sign.txt"), 'w') as f:
+    with open(os.path.join(config['project_path'], "sign.txt"), 'w') as f:
         f.write(suffix)
 
 def del_sign_last():
+    config = parse_core_config()
     # 删除当前目录下的sign.txt文件
-    if os.path.exists(os.path.join(common.PROJECT_PATH, "sign.txt")):
-        os.remove(os.path.join(common.PROJECT_PATH, "sign.txt"))
+    if os.path.exists(os.path.join(config['project_path'], "sign.txt")):
+        os.remove(os.path.join(config['project_path'], "sign.txt"))
 
 def path_with_datesuffix(model_dir: str=None) -> dict:
+    # 解析core.yaml
+    config = parse_core_config()
     # 读取sign.txt文件的内容
     if model_dir == None:
-        with open(os.path.join(common.PROJECT_PATH, "sign.txt"), 'r') as f:
+        with open(os.path.join(config['project_path'], "sign.txt"), 'r') as f:
             task_id = f.read()
     else:
         task_id = model_dir
+
     # 一级目录
-    logdir_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "log_dir"), task_id)
-    modleout_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "model_out"), task_id)
-    mergemodel_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "merged_model"), task_id)
-    ct2_mergemodel_suffix = os.path.join(os.path.join(common.PROJECT_PATH, "ct2_model"), task_id)
+    logdir_suffix = os.path.join(os.path.join(config['project_path'], "log_dir"), task_id)
+    modleout_suffix = os.path.join(os.path.join(config['project_path'], "model_out"), task_id)
+    mergemodel_suffix = os.path.join(os.path.join(config['project_path'], "merged_model"), task_id)
+    ct2_mergemodel_suffix = os.path.join(os.path.join(config['project_path'], "ct2_model"), task_id)
     # model_id下的目录
     tensorboard_logdir = os.path.join(logdir_suffix, "tensor_log")
     eval_logdir = os.path.join(logdir_suffix, "eval_log")
     path_dict = {
-        "DATASET_PATH": common.DATASET_PATH,
-         "MODEL_PATH": common.MODEL_PATH,
-         "METRICS_PATH": common.METRICS_PATH,
+         "MODEL_PATH": config['model_path'],
+         "METRICS_PATH": config['metrics_path'],
          "LOGGING_DIR": logdir_suffix,
          "MODEL_OUT_DIR": modleout_suffix,
          "MERGE_MODEL_SAVEPATH": mergemodel_suffix,
@@ -83,6 +87,35 @@ def read_yaml(config_path):
         config = yaml.safe_load(file)
     return config
 
+def parse_core_config():
+    '''
+    解析core/config.yaml文件，返回一个字典，包含以下键值对：
+    {
+        'dataset_path': [(dataset_name1, split1), (dataset_name2, split2), ...],
+        'model_path': model_path,
+        'metrics_path': metrics_path,
+        'project_path': project_path
+    }
+    '''
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.abspath(os.path.join(current_dir, '../core/core.yaml'))
+    config_path = Path(config_path).as_posix()
+
+    config = read_yaml(config_path)
+
+    core_yaml_dict = {}
+    dataset_path = []
+
+    dataset_paths = config['dataset_paths']
+    name_index = [i for i in range(0, len(dataset_paths)) if i % 2 == 0]
+    for i in name_index:
+        dataset_path.append((dataset_paths[i]['name'], dataset_paths[i+1]['split']))
+
+    core_yaml_dict['dataset_paths'] = dataset_path
+    core_yaml_dict['model_path'] = config['model_path']
+    core_yaml_dict['metrics_path'] = config['metrics_path']
+    core_yaml_dict['project_path'] = config['metrics_path']
+    return core_yaml_dict
 
 def valid_toolyaml(config_path):
     '''
@@ -107,6 +140,10 @@ def valid_toolyaml(config_path):
             continue
         if locale not in SUPPORT_LAUNGUAGES:
             raise ValueError(f"tools/tool.yaml的配置项change_audio2array中包含不支持的语种文件夹: {locale}")
+
+
+
+
 
 
 

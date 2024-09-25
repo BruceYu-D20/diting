@@ -304,14 +304,26 @@ python core/ct2_whisper.py
 
 ### 3.3 配置文件
 
- 配置文件是diting/util/common.py，配置参数意义如下
+ 配置文件是diting/core/core.yaml，配置参数意义如下
 
-| 名称         | 含义                  | 示例                                            |
-| ------------ | --------------------- | ----------------------------------------------- |
-| DATASET_PATH | 数据位置              | /data/huggingface/common_voice_17/ar            |
-| MODEL_PATH   | 模型位置              | /data/huggingface/model/openai-whisper-large-v3 |
-| METRICS_PATH | metrics函数文件夹位置 | /data/huggingface/metrics                       |
-| PROJECT_PATH | 项目位置              | /data/diting                                    |
+```yaml
+dataset_paths:
+  - name: "E:/huggingface/datasets/common_voice_datasets/mgb2_ar"
+  - split: ['train']
+  - name: "E:/huggingface/datasets/common_voice_datasets/common-17_ar"
+  - split: ['train', 'validation']
+model_path: "E:/huggingface/models/whisper-large"
+metrics_path: "E:/huggingface/metrics"
+project_path: "E:/code/diting"
+```
+
+dataset_paths: 配置数据源的路径，必须有成对的name和split。一对name、split代表一个数据源的名称和其对应的数据分片。
+
+model_path：openai-whisper的路径
+
+metrics_path：验证函数的路径
+
+project_path：项目路径
 
 ### 3.4 注意事项
 
@@ -443,31 +455,37 @@ audio_data_path：验证数据的位置，必须包含path字段
 
 ### 5.1 项目目录说明
 
-项目名：diting
-
-接口目录：diting/api
-
-**核心脚本：diting/core**
-
-数据预处理：diting/data_process
-
-文档：diting/docs
-
-**验证：eval**
-
-测试代码：diting/test
-
-**工具类：tools**
-
-utils：核心代码的公共类
-
-日志：diting/log_dir
-
-微调输出模型参数：diting/model_out
-
-合并后的模型存储：diting/merged_model
-
-ctranslate后的模型：diting/ct2_model
+```
+diting/
+├── api
+│   └── data_process.py  					# 获取数据接口类
+├── core				 					# 2. 核心步骤文件夹：微调+合并+转换
+│   ├── ct2_whisper.py   					# - 步骤3：Ctranslate2转换模型主类
+│   ├── ft.py            					# - 步骤1：微调主类
+│   ├── merge_model.py   					# - 步骤2：合并模型参数主类
+│   ├── start_tensorboard.sh
+│   └── tensorboard_ui.service
+├── data_process
+│   ├── load_data.py     					# 加载数据，将语音文件变成datasets.features.Audio的数据处理方法
+├── diting.py			 					# 1. 项目主入口
+├── eval				 					# 3. 验证代码文件夹
+│   ├── eval.yaml		 					# eval配置文件
+│   ├── fasterwhisper_checkpoint_eval_audio.py 
+│   ├── fasterwhisper_checkpoint_eval.py	# 验证微调后的模型
+│   ├── fasterwhisper_eval_audio.py
+│   └── fasterwhisper_eval.py				# 验证基座模型
+├── README.md								# 6. 帮助文档
+├── tools									# 4. 工具类
+│   ├── change_audio2array.py				# 将语音文件转成微调需要的数据类型
+│   ├── change_localpath2server.py		
+│   ├── datacsv_check.py					# 校验方法：检查数据准备的csv文件是否符合规范
+│   └── tool.yaml							# 工具类的配置文件
+└── util									# 5. 公共类
+    ├── common.py							# 微调代码的配置文件
+    ├── features.py
+    ├── logger.py
+    └── utils.py
+```
 
 ### 5.2 主要类的使用
 
@@ -642,3 +660,17 @@ m_165、m_330、m_495、m_660、m_825是5轮微调后的结果模型
 - 单条语音时长：建议每个语音文件的总时长在10s-20s左右，且是有效时长。太短的片段无法提供足够的信息，太长的片段会增加训练复杂度。合理的时长可以确保模型在处理长段落时的稳定性，同时避免内存和计算资源的过多消耗。
 - 语音完整性：保证每个语音文件中的语音是完整的句子，最大程度保证语义完整
 - 数据多样性：尽量覆盖 **不同的语言场景的语音**，**不同性别、不同年龄的人的语音**。数据量越多、场景越多的数据，越有利于模型的泛化能力。
+
+## 7. 版本日志
+
+V1.0：
+
+基础的微调、合并、转换功能；
+
+基础的验证脚本
+
+基础的工具脚本
+
+V1.1：
+
+要添加微调代码支持多个路径的配置

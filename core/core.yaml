@@ -1,0 +1,8 @@
+dataset_paths:
+  - name: "E:/huggingface/datasets/common_voice_datasets/mgb2_ar"
+  - split: ['train']
+  - name: "E:/huggingface/datasets/common_voice_datasets/common-17_ar"
+  - split: ['train', 'validation']
+model_path: "E:/huggingface/models/whisper-large"
+metrics_path: "E:/huggingface/metrics"
+project_path: "E:/code/diting"

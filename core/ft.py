@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
 import os.path
-from datasets import load_from_disk, DatasetDict,concatenate_datasets
 from datasets import Audio
 import evaluate
 from transformers import BitsAndBytesConfig, WhisperProcessor, WhisperForConditionalGeneration, Seq2SeqTrainer
@@ -11,6 +11,7 @@ from util.features import *
 from torch.utils.tensorboard import SummaryWriter
 from util.utils import path_with_datesuffix
 from transformers import Seq2SeqTrainingArguments
+from data_process.ft_data_process import ft_fetch_data
 
 def create_model(paths):
     # 创建模型+peft lora
@@ -42,10 +43,7 @@ def _prepare_dataset(batch, processor):
 
 def prepare_data(paths, processor):
     # 数据集
-    ds = load_from_disk(paths['DATASET_PATH'])
-    common_voice = DatasetDict()
-    common_voice['train'] = concatenate_datasets([ds['train'], ds['validation']])
-    # common_voice['test'] = ds['test']
+    common_voice = ft_fetch_data()
     common_voice = common_voice.cast_column("audio", Audio(sampling_rate=16000))
     common_voice = common_voice.map(
         lambda batch: _prepare_dataset(batch, processor),

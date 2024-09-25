@@ -3,8 +3,7 @@
 from typing import Union
 from datasets import DatasetDict, Dataset
 
-
 class data_process:
-    def fetch_data(data_path) -> Union[DatasetDict, Dataset]:
+    def fetch_data(data_paths: list) -> Union[DatasetDict, Dataset]:
         pass
 
