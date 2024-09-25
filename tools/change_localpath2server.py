@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 
 '''
+@deprecated
 流程：
 1. 从huggingface上下载数据
 2. 将数据save_to_disk到硬盘上，此时，path是本机的绝对路径

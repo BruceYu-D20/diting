@@ -34,7 +34,7 @@ def del_sign_last():
     if os.path.exists(os.path.join(common.PROJECT_PATH, "sign.txt")):
         os.remove(os.path.join(common.PROJECT_PATH, "sign.txt"))
 
-def path_with_datesuffix(model_dir: str == None) -> dict:
+def path_with_datesuffix(model_dir: str=None) -> dict:
     # 读取sign.txt文件的内容
     if model_dir == None:
         with open(os.path.join(common.PROJECT_PATH, "sign.txt"), 'r') as f:

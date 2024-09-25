@@ -21,12 +21,7 @@ faster-whisper的基座模型eval
 需要提前把语音文件变成datasets.features.Audio格式；
 '''
 
-# 获取所有的数据读写路径
-paths = path_with_datesuffix()
-CT2_MERGE_MODEL_SAVEPATH = paths['CT2_MERGE_MODEL_SAVEPATH']
-print(paths['DATASET_PATH'])
 
-test_ds = load_from_disk(paths['DATASET_PATH'])['test']
 
 '''
 将数据集分成n份，用于多进程处理
@@ -51,21 +46,9 @@ def split_ds_to_pices(n: int, ds_len: int) -> list:
     if ds_len % n != 0:
         pice_idx[-1] = ds_len - 1  # 最后一份的最后一个元素是 al 的最后一个元素
     return pice_idx
-# 把数据集分成4份
-ds_split_idx = split_ds_to_pices(4, len(test_ds))
-# 把切分的数据集放到DatasetDict中，key是split_0, split_1, split_2, split_3
-splited_datasets = DatasetDict()
-# zip用于组合每一份数据的起始位置和结束位置
-for step, start_and_end in enumerate(zip(ds_split_idx[:-1], ds_split_idx[1:])):
-    '''
-    例如列表的值是[0,100,200,300,400]，会zip([0,100,200,300], [100,200,300,400])
-    zip的结果是[(0,100), (100,200), (200,300), (300,400)]
-    ds.select(range(0,100))就会抽取原数据集中下标0-100的数据
-    '''
-    splited_datasets[f'split_{step}'] = test_ds.select(range(start_and_end[0], start_and_end[1]))
 
 # 基座模型的eval方法
-def asr_eval(datasets_key: str):
+def asr_eval(ds, paths, data_type, model_path):
     # 存储预测结果和实际结果，用于cer计算
     # 存储预测结果(去掉标符)
     predictions = []
@@ -77,8 +60,7 @@ def asr_eval(datasets_key: str):
 
     # 加载模型
     model = WhisperModel(
-        "Systran/faster-whisper-large-v3",
-        # cache_dir='/data/huggingface/hub',
+        model_path,
         compute_type='float16',
         num_workers=4,
         device='cuda',
@@ -87,15 +69,18 @@ def asr_eval(datasets_key: str):
 
     batched_model = BatchedInferencePipeline(model=model, use_vad_model=True, chunk_length=20)
 
-    for sample in tqdm(splited_datasets[datasets_key]):
-        audio = sample['audio']['array']
+    for sample in tqdm(ds):
+        if data_type == 'array':
+            audio = torch.tensor(sample['audio']['array'], dtype=torch.float32)
+        else:
+            audio = sample['path']
         try:
             if 'locale' in sample.keys():
                 language = sample['locale'] if sample['locale'] is not None else None
             else:
                 language = None
             segments, info = batched_model.transcribe(
-                audio = torch.tensor(audio, dtype=torch.float32),  # np.ndarray
+                audio = audio,  # np.ndarray
                 language=language,
                 task='transcribe',
                 beam_size=5,
@@ -122,17 +107,42 @@ def asr_eval(datasets_key: str):
     cer = metric_cer.compute(predictions=predictions, references=references)
     wer_ad = metric_wer.compute(predictions=predictions_with_ad, references=references_with_ad)
     cer_ad = metric_cer.compute(predictions=predictions_with_ad, references=references_with_ad)
-    print(f'faster-whisper base -- wer: {wer} -- cer: {cer}\n -- wer_ad: {wer_ad} -- cer_ad: {cer_ad}\n')
-    # 将wer cer以追加的形式写道当前目录下的eval_er.txt中
-    with open(os.path.join(paths['LOGGING_DIR'], "eval_er.txt"), "a") as f:
-        f.write(f'faster-whisper base -- wer: {wer} -- cer: {cer}\n -- wer_ad: {wer_ad} -- cer_ad: {cer_ad}\n')
     return wer, cer, wer_ad, cer_ad
 
-if __name__ == '__main__':
+def main(data_type='array'):
     start_time = time.time()
-    data_pices = [key for key in splited_datasets.keys()]
-    with Pool(processes=4) as pool:
-        results = pool.map(asr_eval, data_pices)
+    # 查看eval.yaml文件是否存在
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(current_dir, 'eval.yaml')
+    if not os.path.exists(config_path):
+        # 检查配置文件是否存在
+        raise FileNotFoundError(f"eval.yaml不存在：{config_path}")
+    eval_config = read_yaml(config_path)
+    if data_type == 'array':
+        data_path = eval_config.get("array_data_path")
+    else:
+        data_path = eval_config.get("audio_data_path")
+    num_process = eval_config.get("num_process")
+    model_path = eval_config.get("faster_whisper")
+
+    # 获取所有的数据读写路径
+    paths = path_with_datesuffix("0")
+
+    # 加载数据集，把数据分成多分
+    test_ds = load_from_disk(data_path)['test']
+    ds_split_idx = split_ds_to_pices(num_process, len(test_ds))
+    splited_datasets = DatasetDict()
+    for step, start_and_end in enumerate(zip(ds_split_idx[:-1], ds_split_idx[1:])):
+        '''
+        例如列表的值是[0,100,200,300,400]，会zip([0,100,200,300], [100,200,300,400])
+        zip的结果是[(0,100), (100,200), (200,300), (300,400)]
+        ds.select(range(0,100))就会抽取原数据集中下标0-100的数据
+        '''
+        splited_datasets[f'split_{step}'] = test_ds.select(range(start_and_end[0], start_and_end[1]))
+    data_pices = [(splited, paths, data_type, model_path) for splited in splited_datasets.values()]
+
+    with Pool(processes=num_process) as pool:
+        results = pool.starmap(asr_eval, data_pices)
     pool.close()
     pool.join()
 
@@ -142,9 +152,18 @@ if __name__ == '__main__':
     total_wer_ad = sum(result[2] for result in results) / len(results)
     total_cer_ad = sum(result[3] for result in results) / len(results)
 
-    print(f"平均的 WER去标符: {total_wer} 平均的 CER去标符: {total_cer}\n")
-    print(f"平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}\n")
+    print(f"平均的 WER去标符: {total_wer} 平均的 CER去标符: {total_cer} 平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}\n")
+    if not os.path.exists(paths['LOGGING_DIR']):
+        os.makedirs(paths['LOGGING_DIR'])
+    log_file = os.path.join(paths['LOGGING_DIR'], f"eval_er_{start_time}.txt")
+    with open(log_file, "a") as f:
+        f.write(f"平均的 WER去标符: {total_wer} 平均的 CER去标符: {total_cer} 平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}\n")
+    print(f"{__file__}: 日志已保存到: {log_file}")
     # 结束执行时间
     end_time = time.time()
     print(f"执行时间: {end_time - start_time}秒")
+    pass
 
+if __name__ == '__main__':
+    data_type = 'array'
+    main(data_type)

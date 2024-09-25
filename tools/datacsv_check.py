@@ -130,7 +130,7 @@ def check_audiocsv(config):
                     if not os.path.exists(audio_path):
                         raise FileNotFoundError(f"csv文件 '{csv_file}',{audio_path} 路径不存在")
                     # 6. sentence不能为空
-                    if sentence == '' or sentence == None or sentence == 'nan':
+                    if sentence == '' or sentence == None or sentence == 'nan' or sentence.strip() == '':
                         raise ValueError(f"csv文件 '{csv_file}': {audio_path}中sentence不能为空")
                     # 7. audio_path必须是文件
                     if not os.path.isfile(audio_path):

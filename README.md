@@ -98,6 +98,7 @@ eg.
 对例子的说明：
 
 - /data/audio/origin/ar下20240101、20240102、20240108分别为3个批次的语音数据文件
+
 - audio_20240101-20240103.csv会根据日期范围，处理20240101和20240102中的语音文件
 
   #### 2.3.4 数据CSV填写样例
@@ -128,11 +129,11 @@ text： 语音对应的文本内容
 脚本会对以下项目进行规则验证：
 
 - 数据csv文件必须以 **audio_** 开头。例如audio_20240101_20240103.csv
-- 数据csv文件必须包含两个日期，分别代表开始时间和结束时间，格式为yyyyMMdd，两个日期中间用_分隔
-- 数据csv文件的第一个日期必须小于等于第二个日期。例如audio_20240101_20240101.csv和audio_20240101_20240103.csv都是合法文件名
+- 数据csv文件必须包含两个日期，分别代表开始时间和结束时间，格式为yyyyMMdd，两个日期中间用_分隔，开始结束日期可以相同
+- 数据csv文件的第一个日期必须小于等于第二个日期。例如audio_20240101_20240101.csv和audio_20240101_20240103.csv都是合法文件名，但audio_20240103_20240101.csv不合法
 - 数据csv文件的两个日期区间，必须有可以匹配的日期数据文件夹。例如audio_20240101_20240103.csv可以匹配出20240101、20240102、20240103的语音文件夹
-- 数据csv文件的sentence字段，不能为空
-- 数据csv文件的path字段，path必须存在且是一个文件
+- 数据csv文件的sentence字段，不能为空；不能为多个空格；不能为tab
+- 数据csv文件的path字段，path在服务器上必须存在且是一个文件
 - 数据csv文件的path字段，path必须在可以匹配的日期数据文件夹内
 - 可以匹配的日期数据文件夹内所有语音文件，必须在数据csv文件的path字段中
 
@@ -148,6 +149,7 @@ text： 语音对应的文本内容
 
 - ***数据已经全部放入/data/audio/{language}下***
 - ***数据已经转换成wav格式，采样率=16_000***
+- **不转换采样率的数据会影响模型的效果**
 
 #### 2.4.1 配置文件
 
@@ -170,7 +172,7 @@ change_audio2array:
     save_path: D:/data/audio/ft_audio/he
 ```
 
-change_audio2array：代表配置是change_audio2array.py类的配置
+change_audio2array：配置是change_audio2array.py类的配置项
 
 data_rootpath：数据根目录
 
@@ -355,7 +357,7 @@ eg.
 
 diting在验证脚本中，输出4项指标，分别为 **去标符的WER，去标符的CER，带标符的WER，带标符的CER**
 
-### 4.4 执行验证脚本
+### 4.4 执行验证模型脚本
 
 1. 创建docker容器（不用重复创建）
 
@@ -383,15 +385,27 @@ export PYTHONPATH=/data/diting
 python diting.py --run eval --model_id {model_id}
 ```
 
-参数解释：
+5. 【按需执行】执行验证基座模型脚本
+
+```shell
+python diting.py --run eval --model_id 0
+```
+
+**参数解释：**
 
 --run eval：执行验证过程
 
---model_id：要执行验证的model id。查看model_id的值，在CTranslate2输出目录下。
+--model_id：要执行验证的model id或0。查看model_id的值，在CTranslate2输出目录下；0代表基座模型
+
+**说明：**
+
+每一份数据基座模型验证只需要执行1次，不需要多次执行
+
+### 4.5 执行验证基座模型脚本
 
 ### 4.5查看日志
 
-在验证流程结束后，日志在 {PROJECT_PATH}/log_dir/eval/asr_{model_id}_{checkpoint_dir}.txt。
+在验证流程结束后，日志在 {PROJECT_PATH}/log_dir/{model_id}/eval_log/asr_cp _ {model_id} _ array.txt。
 
 日志中可以查看 **WER带标符、CER带标符、WER去标符、CER去标符** 四个评估值
 
@@ -401,6 +415,29 @@ python diting.py --run eval --model_id {model_id}
 
 - 将所有的音频数据做分割，将8成分给微调，2成分给验证
 - **固定的验证数据集，验证仅做准确率计算，为微调结果提供参考，所以几乎不用变动。且不变动容易和之前的模型做比较。**
+
+### 4.7 配置文件 
+
+- 位置
+
+eval/eval.yaml
+
+- 解释
+
+```yaml
+num_process: 4
+faster_whisper: /data/models/faster-whisper
+array_data_path: /data/..
+audio_data_path: /data/
+```
+
+num_process：多进程执行验证，进程数
+
+faster_whisper：基座模型的位置，在验证基座模型时生效
+
+array_data_path：验证数据的位置，必须包含Audio.array字段
+
+audio_data_path：验证数据的位置，必须包含path字段
 
 ## 5. 项目结构及使用方法
 
@@ -447,19 +484,28 @@ ctranslate后的模型：diting/ct2_model
 
 ​	eval指执行验证过程，调用。必须和--model_id一同指定
 
---model_id：指定在--run eval 的验证过程中，要验证的model_id
+--model_id：指定在--run eval 的验证过程中，要验证的model_id；当model_id=0时，验证基座模型
+
+--data_type：--run eval时，可选指定。取值[array, audio]。array代表处理Audio，audio代表处理音频数据。默认是array
 
 - 样例
 
 ```shell
+# 单步执行时生成sign
 python diting.py --run sign
+# 整体执行微调-合并模型-ctranslate模型
 python diting.py --run ft
+# 验证微调模型，数据源是audio.array
 python diting.py --run eval --model_id 20240918.29775
+# 验证微调模型，数据源是path
+python diting.py --run eval --model_id 20240918.29775 --data_type audio
+# 验证基座模型
+python diting.py --run eval --model_id 0
 ```
 
 #### 5.2.2 core/ft.py
 
-- 作用：微调参数主类，微调openai-whisper-large-v3的参数，并输出微调后的模型参数
+- 作用：希望单步执行。微调参数主类，微调openai-whisper-large-v3的参数，并输出微调后的模型参数
 - 说明
 
 执行之前，先保证项目根目录下sign.txt已经存在，文件中记录的model_id是当此微调参数的任务编号。如果文件不存在，使用
@@ -478,7 +524,7 @@ diting/model_out/{model_id}
 
 #### 5.2.3 core/merge_model.py
 
-- 作用：用于合并微调参数和openai-whisper-large-v3的参数，并输出合并之后的模型
+- 作用：希望单步执行。用于合并微调参数和openai-whisper-large-v3的参数，并输出合并之后的模型
 - 说明
 
 执行之前，先保证sign.txt存在，且sign.txt中记录model_id的5.2.2步骤结果已经存在
@@ -495,7 +541,7 @@ diting/merged_model/{model_id}
 
 #### 5.2.4 core/ct2_whisper.py
 
-- 作用：将合并参数后的模型，做CTranslate2的转换，输出转换后的模型
+- 作用：希望单步执行。将合并参数后的模型，做CTranslate2的转换，输出转换后的模型
 - 说明：
 
 执行之前，先保证sign.txt存在，且sign.txt中记录的model_id的5.2.3步骤结果已经存在
@@ -517,6 +563,34 @@ python core/ct2_whisper.py
 - 存储目录
 
 diting/ct2_model/{model_id}
+
+### 5.3 工具类的使用
+
+#### 5.3.1 tools/datacsv_check.py
+
+- 作用：校验加载数据配置的csv文件的合法性
+- 参数：
+
+参数从tools/tool.yaml中取，详细查看2.4.1章节
+
+- 样例
+
+```shell
+python tools/datacsv_check.py
+```
+
+#### 5.3.2 tools/chage_audio2array.py
+
+- 作用：将现场提供的音频文件变成datasets.features.Audio格式
+- 参数：
+
+参数从tools/tool.yaml中取，详细查看2.4.1章节
+
+- 样例
+
+```
+python tools/change_audio2array.py
+```
 
 ## 6. 测试结果
 

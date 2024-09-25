@@ -51,7 +51,5 @@ def main():
     datacsv_check.main(False, config)
     load_data(config, load_script_path)
 
-
-
 if __name__ == '__main__':
     main()

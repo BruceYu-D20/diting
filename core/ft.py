@@ -50,7 +50,8 @@ def prepare_data(paths, processor):
     common_voice = common_voice.map(
         lambda batch: _prepare_dataset(batch, processor),
         remove_columns=common_voice.column_names["train"],
-        num_proc=4)
+        # num_proc=4,
+    )
     return common_voice
 
 def create_metrics_methods(paths):

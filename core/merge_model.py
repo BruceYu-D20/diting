@@ -9,6 +9,7 @@ import os
 import shutil
 import torch
 from util.utils import path_with_datesuffix
+from tqdm import tqdm
 
 '''
 拷贝['tokenizer.json', "preprocessor_config.json"]到merge目录下
@@ -56,10 +57,10 @@ def _merge_model(paths, checkpoint_abspath, save_abspath):
     tokenizer.save_pretrained(save_abspath)
 
 def merge_peft_model(paths: dict):
-    for step, peft_id in enumerate(os.listdir(paths['MODEL_OUT_DIR'])):
+    for step, peft_id in enumerate(tqdm(os.listdir(paths['MODEL_OUT_DIR']))):
         checkpoint_abspath = os.path.join(paths['MODEL_OUT_DIR'], peft_id)
         save_abspath = os.path.join(paths['MERGE_MODEL_SAVEPATH'], peft_id)
-        print(f'step {step} -- from {checkpoint_abspath} -- save_abspath {save_abspath}')
+        print(f'MERGE MODEL {step}: {checkpoint_abspath}| ---> |{save_abspath}')
         _merge_model(paths, checkpoint_abspath, save_abspath)
         _files_base_to_merge(paths, save_abspath)
 

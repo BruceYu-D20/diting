@@ -13,6 +13,9 @@ import yaml
 '''
 微调后生成的faster-whisper模型
 用于评估训练后模型的错误率
+
+@deprecated 合并进fasterwhisper_checkpoint_eval.py 在--data_type audio时会用语音文件进行微调
+
 '''
 # 获取所有的数据读写路径
 

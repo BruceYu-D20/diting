@@ -15,6 +15,8 @@ faster-whisper的基座模型eval
 用于比较和checkpoint模型的错误率。
 
 用语音文件进行训练
+
+@deprecated 合并进fasterwhisper_eval.py 在--data_type audio时会用语音文件进行微调
 '''
 # 获取所有的数据读写路径
 paths = path_with_datesuffix()
