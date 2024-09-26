@@ -128,8 +128,9 @@ def main(data_type='array'):
     # 获取所有的数据读写路径
     paths = path_with_datesuffix("0")
 
+    split = eval_config.get("split")
     # 加载数据集，把数据分成多分
-    test_ds = load_from_disk(data_path)['test']
+    test_ds = load_from_disk(data_path)[split]
     ds_split_idx = split_ds_to_pices(num_process, len(test_ds))
     splited_datasets = DatasetDict()
     for step, start_and_end in enumerate(zip(ds_split_idx[:-1], ds_split_idx[1:])):

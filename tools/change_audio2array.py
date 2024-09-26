@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import yaml
-import os
+from datetime import datetime
 from util.utils import *
 from datasets import load_dataset, DownloadMode
 import datacsv_check
@@ -10,11 +9,6 @@ import datacsv_check
 将音频文件处理为datasets.features.Audio
 规则看README.md的2.3和2.4章节
 '''
-
-# def parse_toolconfig(config_path):
-#     with open(config_path, 'r') as file:
-#         config = yaml.safe_load(file)
-#     return config
 
 def load_data(config, load_script_path):
     data_rootpath = config['change_audio2array']['data_rootpath']
@@ -33,7 +27,8 @@ def load_data(config, load_script_path):
                                    lauguage=locale,
                                    download_mode=DownloadMode.FORCE_REDOWNLOAD,
                                    )
-            user_ds.save_to_disk(save_path)
+            current_date = datetime.now().strftime('%Y%m%d')
+            user_ds.save_to_disk(os.path.join(save_path, current_date))
 
 def main():
     # 获取配置文件路径

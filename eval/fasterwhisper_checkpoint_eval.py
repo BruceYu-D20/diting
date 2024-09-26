@@ -26,9 +26,11 @@ def process_checkpoint(checkpoint_dir, paths: dict, log_file: str, eval_config, 
     else:
         data_path = eval_config.get("audio_data_path")
 
+    # 数据分片
+    data_split = eval_config.get("split")
 
     # 获取eval.yaml中array_data_path的值
-    test_ds = load_from_disk(data_path)['test']
+    test_ds = load_from_disk(data_path)[data_split]
 
     # 存储预测结果和实际结果，用于cer计算
     predictions = []
