@@ -27,8 +27,13 @@ def load_data(config, load_script_path):
                                    lauguage=locale,
                                    download_mode=DownloadMode.FORCE_REDOWNLOAD,
                                    )
+            # 拼接save_path路径，save_path/20240101
             current_date = datetime.now().strftime('%Y%m%d')
-            user_ds.save_to_disk(os.path.join(save_path, current_date))
+            save_path = os.path.join(save_path, current_date)
+            if not os.path.exists(save_path):
+                # 如果save_path不存在，先创建
+                os.makedirs(save_path)
+            user_ds.save_to_disk(save_path)
 
 def main():
     # 获取配置文件路径
@@ -41,7 +46,7 @@ def main():
     # 加载tool.yaml
     config = read_yaml(config_path)
     # 验证tool.yaml文件合法性
-    valid_toolyaml(config_path)
+    valid_tool_config(config_path)
     # 验证csv文件的合法性
     datacsv_check.main(False, config)
     load_data(config, load_script_path)

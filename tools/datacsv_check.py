@@ -152,7 +152,7 @@ def main(check_yaml=True, config=None):
         config = read_yaml(config_path)
     # 验证配置文件合法性
     if check_yaml:
-        valid_toolyaml(config_path)
+        valid_tool_config(config_path)
     # 检验csv文件名的合法性
     check_audiocsv(config)
     print(f'语音数据csv文件校验合法')

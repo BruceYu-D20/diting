@@ -117,7 +117,7 @@ def parse_core_config():
     core_yaml_dict['project_path'] = config['metrics_path']
     return core_yaml_dict
 
-def valid_toolyaml(config_path):
+def valid_tool_config(config_path):
     '''
     检查tools/tool.yaml的配置项是否合法
     1. 文件必须存在
@@ -129,17 +129,22 @@ def valid_toolyaml(config_path):
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"{config_path} 不存在，请检查环境")
     # 检查值是否合法
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
+    config = read_yaml(config_path)
     if not 'change_audio2array' in config.keys():
         raise ValueError("tools/tool.yaml的配置项必须包含change_audio2array")
+    # 检查是否包含data_rootpath
     if 'data_rootpath' not in config['change_audio2array'].keys():
         raise ValueError("tools/tool.yaml的配置项change_audio2array必须包含data_rootpath")
-    for locale, locale_config in config['change_audio2array'].items():
-        if locale in ['data_rootpath']:
+    # 检查是否是支持的语种
+    config_laungs = [laung for laung in config['change_audio2array'].keys() if laung != 'data_rootpath' and laung in SUPPORT_LAUNGUAGES]
+    if len(config_laungs) == 0:
+        raise ValueError(f"tools/tool.yaml的配置项change_audio2array中必须包含语种文件夹 {SUPPORT_LAUNGUAGES}")
+
+    for laung in config['change_audio2array'].keys():
+        if laung == 'data_rootpath':
             continue
-        if locale not in SUPPORT_LAUNGUAGES:
-            raise ValueError(f"tools/tool.yaml的配置项change_audio2array中包含不支持的语种文件夹: {locale}")
+        if laung not in SUPPORT_LAUNGUAGES:
+            raise ValueError(f"tools/tool.yaml的配置项change_audio2array中包含不支持的语种文件夹: {laung}")
 
 
 
