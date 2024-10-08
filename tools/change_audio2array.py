@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from datetime import datetime
 from util.utils import *
 from datasets import load_dataset, DownloadMode
 import datacsv_check

@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
 import os.path
-from datasets import Audio
 import evaluate
 from transformers import BitsAndBytesConfig, WhisperProcessor, WhisperForConditionalGeneration, Seq2SeqTrainer
 from peft import prepare_model_for_kbit_training
@@ -11,7 +9,8 @@ from util.features import *
 from torch.utils.tensorboard import SummaryWriter
 from util.utils import path_with_datesuffix
 from transformers import Seq2SeqTrainingArguments
-from data_process.ft_data_process import ft_fetch_data
+import api.data_process as dp
+from data_process.ft_data_process import fetch_data_process
 
 def create_model(paths):
     # 创建模型+peft lora
@@ -41,10 +40,10 @@ def _prepare_dataset(batch, processor):
     batch["labels"] = processor.tokenizer(batch["sentence"]).input_ids
     return batch
 
-def prepare_data(paths, processor):
+def prepare_data(fetch_dp: dp, processor):
     # 数据集
-    common_voice = ft_fetch_data()
-    common_voice = common_voice.cast_column("audio", Audio(sampling_rate=16000))
+    # common_voice = ft_fetch_data()
+    common_voice = dp.fetch_ftdata(fetch_dp)
     common_voice = common_voice.map(
         lambda batch: _prepare_dataset(batch, processor),
         remove_columns=common_voice.column_names["train"],
@@ -137,10 +136,11 @@ def create_trainer(model, processor, common_voice, paths, data_collator):
     return trainer
 
 def main(paths: dict):
+    # 获取模型
     model, processor = create_model(paths)
-    train_datasets = prepare_data(paths, processor)
+    # 获取数据集，不同的继承类型，只需要更换fetch_data_process即可
+    train_datasets = prepare_data(fetch_data_process, processor)
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
-    metric_wer, metric_cer = create_metrics_methods(paths)
     trainer = create_trainer(model, processor, train_datasets, paths, data_collator)
     trainer.train()
 

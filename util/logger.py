@@ -1,5 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 import logging
-import os
 from datetime import datetime
 
 class Logger:

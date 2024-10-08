@@ -1,8 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-#
-# 代码功能：
-# 合并peft checkpoint和基座模型的权重
 from peft import PeftModel
 from transformers import WhisperForConditionalGeneration, WhisperTokenizer
 import os
@@ -12,9 +9,13 @@ from util.utils import path_with_datesuffix
 from tqdm import tqdm
 
 '''
-拷贝['tokenizer.json', "preprocessor_config.json"]到merge目录下
+代码功能：合并peft checkpoint和基座模型的权重
 '''
+
 def _files_base_to_merge(paths, save_abspath):
+    '''
+    拷贝['tokenizer.json', "preprocessor_config.json"]到merge目录下
+    '''
     wait_for_copy = ['tokenizer.json', "preprocessor_config.json"]
     sourcedir_files = [f for f in wait_for_copy if os.path.isfile(os.path.join(paths['MODEL_PATH'], f))]
     mergedir_files = [f for f in wait_for_copy if os.path.isfile(os.path.join(save_abspath, f))]
@@ -35,13 +36,12 @@ def _files_base_to_merge(paths, save_abspath):
     if(copy_file_num != file_diff_num):
         print("文件没有全部拷贝，请检查")
 
-'''
-合并基座模型和peft checkpoint模型
-checkpoint_abspath: peft checkpoint模型路径
-save_abspath: 合并后的模型保存路径(带checkpoint标志)
-'''
 def _merge_model(paths, checkpoint_abspath, save_abspath):
-
+    '''
+    合并基座模型和peft checkpoint模型
+    checkpoint_abspath: peft checkpoint模型路径
+    save_abspath: 合并后的模型保存路径(带checkpoint标志)
+    '''
     base_model = WhisperForConditionalGeneration.from_pretrained(
         paths['MODEL_PATH'],
         low_cpu_mem_usage=True,

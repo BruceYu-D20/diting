@@ -1,8 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-#
-# 工具类：包含了data_collator和call_back
-
 import torch
 import os
 from dataclasses import dataclass
@@ -10,6 +7,10 @@ from typing import Any, Dict, List, Union
 from torch.utils.tensorboard import SummaryWriter
 from transformers import TrainingArguments, TrainerState, TrainerControl, TrainerCallback
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
+
+'''
+工具类：包含了data_collator和call_back
+'''
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:

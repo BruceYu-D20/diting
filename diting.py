@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 import core.ft
 import core.merge_model
 import core.ct2_whisper

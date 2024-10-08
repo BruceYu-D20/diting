@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 import os
 from datetime import datetime
 import time
@@ -114,7 +116,7 @@ def parse_core_config():
     core_yaml_dict['dataset_paths'] = dataset_path
     core_yaml_dict['model_path'] = config['model_path']
     core_yaml_dict['metrics_path'] = config['metrics_path']
-    core_yaml_dict['project_path'] = config['metrics_path']
+    core_yaml_dict['project_path'] = config['project_path']
     return core_yaml_dict
 
 def valid_tool_config(config_path):
@@ -145,11 +147,3 @@ def valid_tool_config(config_path):
             continue
         if laung not in SUPPORT_LAUNGUAGES:
             raise ValueError(f"tools/tool.yaml的配置项change_audio2array中包含不支持的语种文件夹: {laung}")
-
-
-
-
-
-
-
-

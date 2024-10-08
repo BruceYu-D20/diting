@@ -1,4 +1,5 @@
-import os
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 from datasets import load_dataset, load_from_disk
 from tqdm import tqdm
 import evaluate

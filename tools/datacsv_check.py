@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import os.path
-from pathlib import Path
 from util.utils import *
 import glob
 import pandas as pd

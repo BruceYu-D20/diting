@@ -1,15 +1,12 @@
-import time
-
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 from util.utils import *
 import os
-from datasets import load_from_disk, load_dataset, DatasetDict
+from datasets import load_from_disk, DatasetDict
 from tqdm import tqdm
 import evaluate
-from pathlib import Path
-import re
 from multiprocessing import Pool
-import numpy as np
 import torch
 
 '''

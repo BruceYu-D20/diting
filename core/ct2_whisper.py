@@ -1,4 +1,5 @@
-import os
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 from util.utils import *
 from tqdm import tqdm
 
