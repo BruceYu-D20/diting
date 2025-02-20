@@ -9,5 +9,5 @@ class data_process:
         pass
 
 def fetch_ftdata(dp: data_process):
-    dp.fetch_data()
+    return dp.fetch_data()
 

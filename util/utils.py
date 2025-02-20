@@ -49,20 +49,24 @@ def path_with_datesuffix(model_dir: str=None) -> dict:
         task_id = model_dir
 
     # 一级目录
-    logdir_suffix = os.path.join(os.path.join(config['project_path'], "log_dir"), task_id)
-    modleout_suffix = os.path.join(os.path.join(config['project_path'], "model_out"), task_id)
-    mergemodel_suffix = os.path.join(os.path.join(config['project_path'], "merged_model"), task_id)
-    ct2_mergemodel_suffix = os.path.join(os.path.join(config['project_path'], "ct2_model"), task_id)
+    # logdir_suffix = os.path.join(os.path.join(config['project_path'], "log_dir"), task_id)
+    logdir_suffix = os.path.join(config['project_path'], "log_dir")
+    modelout_suffix = os.path.join(config['project_path'], "model_out")
+    ft_modelout_dir = os.path.join(os.path.join(modelout_suffix, "ft_model"), task_id)
+    merge_modelout_dir = os.path.join(os.path.join(modelout_suffix, "merged_model"), task_id)
+    ct2_modleout_dir = os.path.join(os.path.join(modelout_suffix, "ct2_model"), task_id)
     # model_id下的目录
-    tensorboard_logdir = os.path.join(logdir_suffix, "tensor_log")
-    eval_logdir = os.path.join(logdir_suffix, "eval_log")
+    # tensorboard_logdir = os.path.join(logdir_suffix, "tensor_log")
+    # eval_logdir = os.path.join(logdir_suffix, "eval_log")
+    tensorboard_logdir = os.path.join(os.path.join(logdir_suffix, "tensor_log"), task_id)
+    eval_logdir = os.path.join(os.path.join(logdir_suffix, "eval_log"), task_id)
     path_dict = {
          "MODEL_PATH": config['model_path'],
          "METRICS_PATH": config['metrics_path'],
          "LOGGING_DIR": logdir_suffix,
-         "MODEL_OUT_DIR": modleout_suffix,
-         "MERGE_MODEL_SAVEPATH": mergemodel_suffix,
-         "CT2_MERGE_MODEL_SAVEPATH": ct2_mergemodel_suffix,
+         "MODEL_OUT_DIR": ft_modelout_dir,
+         "MERGE_MODEL_SAVEPATH": merge_modelout_dir,
+         "CT2_MERGE_MODEL_SAVEPATH": ct2_modleout_dir,
          "TENSORBOARD_LOGDIR": tensorboard_logdir,
          "EVAL_LOGDIR": eval_logdir
     }

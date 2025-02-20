@@ -7,7 +7,7 @@ from datasets import load_from_disk, DatasetDict
 from tqdm import tqdm
 import evaluate
 from multiprocessing import Pool
-import torch
+import numpy as np
 
 '''
 faster-whisper的基座模型eval
@@ -64,13 +64,13 @@ def asr_eval(ds, paths, data_type, model_path):
         local_files_only=True,
         )
 
-    batched_model = BatchedInferencePipeline(model=model, use_vad_model=True, chunk_length=20)
+    batched_model = BatchedInferencePipeline(model=model)
 
     for sample in tqdm(ds):
         if data_type == 'array':
-            audio = torch.tensor(sample['audio']['array'], dtype=torch.float32)
+            audio = sample['audio']['array'].astype(np.float32)
         else:
-            audio = sample['path']
+            audio = sample['audio']['path']
         try:
             if 'locale' in sample.keys():
                 language = sample['locale'] if sample['locale'] is not None else None
@@ -151,9 +151,9 @@ def main(data_type='array'):
     total_cer_ad = sum(result[3] for result in results) / len(results)
 
     print(f"平均的 WER去标符: {total_wer} 平均的 CER去标符: {total_cer} 平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}\n")
-    if not os.path.exists(paths['LOGGING_DIR']):
-        os.makedirs(paths['LOGGING_DIR'])
-    log_file = os.path.join(paths['LOGGING_DIR'], f"eval_er_{start_time}.txt")
+    if not os.path.exists(paths['EVAL_LOGDIR']):
+        os.makedirs(paths['EVAL_LOGDIR'])
+    log_file = os.path.join(paths['EVAL_LOGDIR'], f"eval_er_{start_time}.txt")
     with open(log_file, "a") as f:
         f.write(f"平均的 WER去标符: {total_wer} 平均的 CER去标符: {total_cer} 平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}\n")
     print(f"{__file__}: 日志已保存到: {log_file}")

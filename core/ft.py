@@ -73,7 +73,6 @@ def _compute_metrics(pred, processor, metric_wer, metric_cer):
     cer = 100 * metric_cer.compute(predictions=pred_str, references=label_str)
     return {"wer": wer, "cer": cer}
 
-
 def create_trainer(model, processor, common_voice, paths, data_collator):
     # log日志文件夹按时间存
     # 定义Seq2Seq训练参数
@@ -81,8 +80,8 @@ def create_trainer(model, processor, common_voice, paths, data_collator):
         output_dir=paths['MODEL_OUT_DIR'],  # 设置模型输出目录，可以根据需要更改
         logging_dir=paths['TENSORBOARD_LOGDIR'],  # 设置日志目录
         logging_steps=1,  # 每一步记录一次日志
-        num_train_epochs=5,  # 训练10个epoch
-        per_device_train_batch_size=150,  # 每个设备的训练批次大小为128
+        num_train_epochs=2,  # 训练10个epoch
+        per_device_train_batch_size=10,  # 每个设备的训练批次大小为128
         gradient_accumulation_steps=1,  # 每次减少2倍的batch size，增加2倍
         # per_device_eval_batch_size=64, # 每个设备的评估批次大小为64
         # eval_accumulation_steps=2, # 每两个step评估一次
@@ -139,7 +138,8 @@ def main(paths: dict):
     # 获取模型
     model, processor = create_model(paths)
     # 获取数据集，不同的继承类型，只需要更换fetch_data_process即可
-    train_datasets = prepare_data(fetch_data_process, processor)
+    dp_instance = fetch_data_process()
+    train_datasets = prepare_data(dp_instance, processor)
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
     trainer = create_trainer(model, processor, train_datasets, paths, data_collator)
     trainer.train()

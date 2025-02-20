@@ -180,7 +180,7 @@ en ar zh he：语种文件夹，会和data_rootpath拼接，例如  D:/data/audi
 
 enable：本次处理中，是否有该语言的数据需要预处理。取值：[no, yes]。
 
-save_path：该语种处理完的文件存储路径
+save_path：该语种处理完的文件存储路径，最终存储路径是save_path/当天日期
 
 #### 2.4.2 执行数据处理操作
 
@@ -221,14 +221,6 @@ python tools/datacsv_check.py
 ```shell
 python tools/change_audio2array.py
 ```
-
-6. 验证
-
-```
-python tools/eval_audio2array.py
-```
-
-查看日志输出条数是否和原始文件数据条数相同
 
 ## 3. 微调
 
@@ -441,6 +433,7 @@ num_process: 4
 faster_whisper: /data/models/faster-whisper
 array_data_path: /data/..
 audio_data_path: /data/
+split: test
 ```
 
 num_process：多进程执行验证，进程数
@@ -450,6 +443,8 @@ faster_whisper：基座模型的位置，在验证基座模型时生效
 array_data_path：验证数据的位置，必须包含Audio.array字段
 
 audio_data_path：验证数据的位置，必须包含path字段
+
+split：取数据集的指定数据分区用于验证
 
 ## 5. 项目结构及使用方法
 
@@ -674,3 +669,8 @@ V1.0：
 V1.1：
 
 要添加微调代码支持多个路径的配置
+
+V1.2 :
+
+2025/2/7 适配faster-whisper 1.1.1版本
+

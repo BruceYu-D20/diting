@@ -14,7 +14,9 @@ def ctranslate_whisper(paths):
         print(f'CTRANSFORM2 {step}: FROM | {merge_model_savepath}| ---> |{ct2_merge_model_savepath}')
         #--low_cpu_mem_usage   Enable the flag low_cpu_mem_usage when loading the model with from_pretrained. (default: False)
         # cover的时候指定--quantization float16 , peft加载的时候也要torch.floatx格式
-        ct_cmd = f"ct2-transformers-converter --model {merge_model_savepath} --output_dir {ct2_merge_model_savepath} --quantization float16 --force --copy_files tokenizer.json preprocessor_config.json"
+        # ct_cmd = f"ct2-transformers-converter --model {merge_model_savepath} --output_dir {ct2_merge_model_savepath} --quantization float16 --force --copy_files tokenizer.json preprocessor_config.json"
+        # 去掉--quantization float16，参看 https://github.com/SYSTRAN/faster-whisper/issues/1168
+        ct_cmd = f"ct2-transformers-converter --model {merge_model_savepath} --output_dir {ct2_merge_model_savepath} --force --copy_files tokenizer.json preprocessor_config.json"
         os.system(ct_cmd)
 
 

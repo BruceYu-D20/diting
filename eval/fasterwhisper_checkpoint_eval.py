@@ -8,6 +8,7 @@ from multiprocessing import Pool
 from util.utils import *
 import time
 import torch
+import numpy as np
 
 '''
 微调后生成的faster-whisper模型
@@ -34,8 +35,8 @@ def process_checkpoint(checkpoint_dir, paths: dict, log_file: str, eval_config, 
     test_ds = load_from_disk(data_path)[data_split]
 
     # 存储预测结果和实际结果，用于cer计算
-    predictions = []
-    references = []
+    predictions_remove_ad = []
+    references_remove_ad = []
     predictions_with_ad = []
     references_with_ad = []
 
@@ -47,52 +48,63 @@ def process_checkpoint(checkpoint_dir, paths: dict, log_file: str, eval_config, 
         device='cuda',
         local_files_only=True)
 
-    batched_model = BatchedInferencePipeline(model=model, use_vad_model=True, chunk_length=20)
+    batched_model = BatchedInferencePipeline(model=model)
 
     # 逐个推理
     for step, sample in enumerate(tqdm(test_ds)):
+        print(sample, type(sample['audio']['array']))
         if data_type == 'array':
-            audio = torch.tensor(sample['audio']['array'], dtype=torch.float32)
+            audio = sample['audio']['array'].astype(np.float32)
+            # audio = torch.tensor(sample['audio']['array'], dtype=torch.float32)
         else:
-            audio = sample['path']
+            audio = sample['audio']['path']
         try:
             if 'locale' in sample.keys():
                 language = sample['locale'] if sample['locale'] is not None else None
             else:
                 language = None
+
+            print(f'language: {language}')
+            print(f'audio: {audio}')
             segments, info = batched_model.transcribe(
-                audio = torch.tensor(audio, dtype=torch.float32),
+                audio = audio,
                 language=language,
-                task='transcribe',
                 beam_size=5,
-                batch_size=20,
-                initial_prompt=None,
+                batch_size=16,
+                word_timestamps=True,
+                vad_filter=True,
+                temperature=0.8,
+                chunk_length=16,
+                hallucination_silence_threshold=2,
+                repetition_penalty=2,
             )
             prediction_with_ad = "".join(segment.text for segment in segments)
             reference_with_ad = sample['sentence']
-            prediction = remove_arabic_diacritics(prediction_with_ad)
-            reference = remove_arabic_diacritics(reference_with_ad)
+            prediction_remove_ad = remove_arabic_diacritics(prediction_with_ad)
+            reference_remove_ad = remove_arabic_diacritics(reference_with_ad)
 
-            predictions.append(prediction)
-            references.append(reference)
+            predictions_remove_ad.append(prediction_remove_ad)
+            references_remove_ad.append(reference_remove_ad)
             predictions_with_ad.append(prediction_with_ad)
             references_with_ad.append(reference_with_ad)
+
+            print(prediction_remove_ad, reference_remove_ad, prediction_with_ad, reference_with_ad)
         except Exception as e:
             print(e)
 
     # 测评
     metric_wer = evaluate.load(os.path.join(paths['METRICS_PATH'], "wer"))
     metric_cer = evaluate.load(os.path.join(paths['METRICS_PATH'], "cer"))
-    wer = metric_wer.compute(predictions=predictions, references=references)
-    cer = metric_cer.compute(predictions=predictions, references=references)
-    wer_ad = metric_wer.compute(predictions=predictions_with_ad, references=references_with_ad)
-    cer_ad = metric_cer.compute(predictions=predictions_with_ad, references=references_with_ad)
+    wer_remove_ad = metric_wer.compute(predictions=predictions_remove_ad, references=references_remove_ad)
+    cer_remove_ad = metric_cer.compute(predictions=predictions_remove_ad, references=references_remove_ad)
+    wer_with_ad = metric_wer.compute(predictions=predictions_with_ad, references=references_with_ad)
+    cer_with_ad = metric_cer.compute(predictions=predictions_with_ad, references=references_with_ad)
 
-    print(f'Model {checkpoint_dir} -- WER去标符: {wer}, CER去标符: {cer} -- WER带标符: {wer_ad}, CER带标符: {cer_ad}')
+    print(f'Model {checkpoint_dir} -- WER去标符: {wer_remove_ad}, CER去标符: {cer_remove_ad} -- WER带标符: {wer_with_ad}, CER带标符: {cer_with_ad}')
     with open(log_file, "a") as f:
-        f.write(f'Model {checkpoint_dir} -- WER去标符: {wer}, CER去标符: {cer} -- WER带标符: {wer_ad}, CER带标符: {cer_ad}\n')
+        f.write(f'Model {checkpoint_dir} -- WER去标符: {wer_remove_ad}, CER去标符: {cer_remove_ad} -- WER带标符: {wer_with_ad}, CER带标符: {cer_with_ad}\n')
 
-    return wer, cer, wer_ad, cer_ad
+    return wer_remove_ad, cer_remove_ad, wer_with_ad, cer_with_ad
 
 def main(model_id=None, data_type='array'):
     # 开始执行时间
@@ -130,14 +142,14 @@ def main(model_id=None, data_type='array'):
     pool.join()
 
     # 计算所有线程返回结果的平均值
-    total_wer = sum(result[0] for result in results) / len(results)
-    total_cer = sum(result[1] for result in results) / len(results)
+    total_remove_wer = sum(result[0] for result in results) / len(results)
+    total_remove_cer = sum(result[1] for result in results) / len(results)
     total_wer_ad = sum(result[2] for result in results) / len(results)
     total_cer_ad = sum(result[3] for result in results) / len(results)
 
-    print(f"平均的 WER去标符: {total_wer} 平均的 CER去标符: {total_cer} 平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}")
+    print(f"平均的 WER去标符: {total_remove_wer} 平均的 CER去标符: {total_remove_cer} 平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}")
     with open(log_file, "a") as f:
-        f.write(f"平均的 WER去标符: {total_wer} 平均的 CER去标符: {total_cer} 平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}\n")
+        f.write(f"平均的 WER去标符: {total_remove_wer} 平均的 CER去标符: {total_remove_cer} 平均的 WER带标符: {total_wer_ad} 平均的 CER带标符: {total_cer_ad}\n")
     print(f'日志已保存到: {log_file}')
     # 结束执行时间
     end_time = time.time()
